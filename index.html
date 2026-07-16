@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>L'Univers des Otakus</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="connexion" class="ecran">
+  <h1>🌸 L'Univers des Otakus</h1>
+  <p>Entrez votre code de connexion :</p>
+  <input type="text" id="codeInput" placeholder="Votre code">
+  <button onclick="seConnecter()">Se connecter</button>
+  <p id="messageConnexion" class="erreur"></p>
+  <hr>
+  <p>Pas encore de compte ?</p>
+  <button onclick="ouvrirInscription()">✨ S'inscrire</button>
+  <p><a href="#" onclick="ouvrirRecuperation()" style="color:#ffd166;">🔑 J'ai perdu l'accès à mon compte</a></p>
+</div>
+
+<div id="inscription" class="ecran" style="display:none;">
+  <h1>✨ Inscription</h1>
+  <input type="text" id="codeInscriptionInput" placeholder="Code d'inscription (OTAKU2026)"><br>
+  <input type="text" id="pseudoInscriptionInput" placeholder="Choisis ton pseudo"><br>
+  <p>Ta spécialité :</p>
+  <select id="specialiteInscriptionInput">
+    <option value="Guerrier">⚔️ Guerrier</option>
+    <option value="Archer">🏹 Archer</option>
+    <option value="Stratège">🧠 Stratège</option>
+  </select>
+  <p>Choisis ton avatar :</p>
+  <div id="choixAvatarInscription"></div>
+  <p>Choisis ton clan :</p>
+  <div id="listeClansInscription"></div>
+  <button onclick="validerInscription()">Créer mon compte</button>
+  <p id="messageInscription" class="erreur"></p>
+  <button onclick="retourConnexion()">← Retour</button>
+</div>
+
+<div id="recuperation" class="ecran" style="display:none;">
+  <h1>🔑 Récupérer mon compte</h1>
+  <p>Entre ton code de récupération à 6 chiffres :</p>
+  <input type="text" id="codeRecuperationInput" placeholder="Code à 6 chiffres">
+  <button onclick="recupererCompte()">Récupérer</button>
+  <p id="messageRecuperation" class="erreur"></p>
+  <button onclick="retourConnexion()">← Retour</button>
+</div>
+
+<div id="afficheCodeRecup" class="panelFlottant" style="display:none;">
+  <h2>🔑 Ton code de récupération</h2>
+  <p>Note bien ce code quelque part en sécurité. Il te permettra de récupérer ton compte si tu perds ce téléphone :</p>
+  <h1 id="codeRecupAffiche" style="color:#ffd166; letter-spacing:4px;"></h1>
+  <button onclick="fermerCodeRecup()">J'ai bien noté, continuer</button>
+</div>
+
+<div id="accueil" class="ecran" style="display:none; position:relative;">
+  <button onclick="ouvrirParametres()" style="position:absolute; top:0; right:0;">⚙️</button>
+  <div id="notifBox"></div>
+  <h1><span id="avatarAffiche"></span> <span id="pseudoAffiche"></span></h1>
+  <p class="badge">Grade : <span id="gradeAffiche"></span> | Clan : <span id="clanAffiche"></span> | <span id="specialiteAffiche"></span></p>
+  <p class="monnaie">🪙 <span id="orAffiche">0</span> Francs Otaku &nbsp;|&nbsp; 🏆 <span id="prestigeAffiche">0</span> Prestige</p>
+  <p id="evenementAleatoire" class="erreur"></p>
+
+  <div class="section">
+    <h2>📊 Statistiques</h2>
+    <div id="statsBox" class="boite"></div>
+    <button onclick="travailler()">💼 Travailler (gagner de l'or)</button>
+    <p id="messageTravail"></p>
+  </div>
+
+  <div class="section">
+    <h2>🎯 Quête du jour</h2>
+    <p id="queteTexte"></p>
+    <button onclick="reclamerQuete()">🎁 Réclamer la récompense</button>
+  </div>
+
+  <div class="section">
+    <h2>🐉 Boss mondial</h2>
+    <p id="infosBoss"></p>
+    <button onclick="attaquerBoss()">⚔️ Attaquer le Boss</button>
+  </div>
+
+  <div class="section">
+    <h2>🎒 Inventaire</h2>
+    <div id="inventaireBox" class="boite"></div>
+  </div>
+
+  <div class="section">
+    <h2>💬 Chat général</h2>
+    <div id="chatBox" class="boite"></div>
+    <input type="text" id="messageInput" placeholder="Écrire un message...">
+    <button onclick="envoyerMessage()">Envoyer</button>
+  </div>
+
+  <div class="section" id="sectionClan" style="display:none;">
+    <h2>🎯 Mon clan</h2>
+    <div id="listeMembresClan" class="boite"></div>
+    <div id="chatClanBox" class="boite"></div>
+    <input type="text" id="messageClanInput" placeholder="Écrire à mon clan...">
+    <button onclick="envoyerMessageClan()">Envoyer au clan</button>
+  </div>
+
+  <div class="section" id="sectionVillage" style="display:none;">
+    <h2>🏰 Village du clan</h2>
+    <p id="infosVillage"></p>
+    <p id="ressourcesVillage"></p>
+    <div id="batimentsVillage" class="grilleVillage"></div>
+    <div id="zoneChefVillage" style="display:none;">
+      <p>💰 Taux de taxe : <span id="tauxActuel"></span>%</p>
+      <input type="range" id="curseurTaxe" min="0" max="100" value="20" onchange="changerTaxe(this.value)">
+      <button onclick="collecterImpots()">💰 Collecter impôts</button>
+      <button onclick="collecterRessources()">🌿 Récolter ressources</button>
+      <button onclick="guerreVillage()">⚔️ Déclarer la guerre à un village</button>
+      <button onclick="proposerAlliance()">🤝 Proposer une alliance</button>
+    </div>
+    <div id="zoneRevolte" style="display:none;">
+      <p class="erreur">⚠️ Le village gronde de mécontentement...</p>
+      <button onclick="seRevolter()" style="background:#8b0000;">🔥 Organiser une révolte</button>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>🛒 Boutique</h2>
+    <div id="boutiqueBox" class="boite"></div>
+  </div>
+
+  <div class="section" id="sectionDiplomatie" style="display:none;">
+    <h2>🗺️ Diplomatie & Guerre</h2>
+    <div id="boiteDiplomatie" class="boite"></div>
+  </div>
+
+  <div class="section" id="sectionCommandement" style="display:none;">
+    <h2>🎯 Panel de commandement</h2>
+    <p id="resumeArmee"></p>
+    <button onclick="pillerVillage()" style="background:#8b0000;">🏴‍☠️ Piller un village</button>
+    <div id="listeArmee" class="boite"></div>
+  </div>
+
+  <div class="section" id="sectionAdmin" style="display:none;">
+    <h2>🛠️ Administration Suprême</h2>
+    <div id="listeAdmin" class="boite"></div>
+  </div>
+
+  <div class="section">
+    <h2>⚔️ Combat inter-clans</h2>
+    <div id="listeAdversaires" class="boite"></div>
+    <p id="resultatCombat"></p>
+  </div>
+
+  <div class="section">
+    <h2>👑 Guerre des Royaumes</h2>
+    <p id="statutGuerreRoyaumes">Aucune guerre en préparation.</p>
+    <p id="compteARebours" style="font-size:28px; color:#ffd166;"></p>
+    <div id="zoneFondateurGuerre" style="display:none;">
+      <button onclick="commencerGuerreRoyaumes()" style="background:#8b0000;">👑 Commencer la Guerre des Royaumes</button>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>🗺️ Carte du monde</h2>
+    <div id="carteMonde" class="boite" style="text-align:center;"></div>
+  </div>
+
+  <div class="section">
+    <h2>👑 Trône du monde</h2>
+    <p>Roi actuel : <span id="roiActuel">Aucun</span></p>
+    <div id="listeInscrits" class="boite"></div>
+    <button onclick="inscrireTournoi()">🎗️ S'inscrire au tournoi</button>
+    <div id="zoneFondateurTournoi" style="display:none;">
+      <button onclick="lancerTournoi()" style="background:#8b0000;">👑 Lancer le tournoi</button>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>🏆 Classement des clans</h2>
+    <div id="classementClans" class="boite"></div>
+  </div>
+
+  <div class="section">
+    <h2>🥇 Classement individuel</h2>
+    <div id="classementJoueurs" class="boite"></div>
+  </div>
+
+  <div class="section">
+    <h2>📜 Journal du monde</h2>
+    <div id="journalBox" class="boite"></div>
+  </div>
+
+  <button onclick="seDeconnecter()" style="background:#8b0000; margin-top:20px;">🚪 Se déconnecter</button>
+</div>
+
+<div id="panelProfil" class="panelFlottant" style="display:none;">
+  <h2 id="panelPseudo"></h2>
+  <p id="panelInfos"></p>
+  <button onclick="fermerPanel()">Fermer</button>
+</div>
+
+<div id="panelParametres" class="panelFlottant" style="display:none;">
+  <h2>⚙️ Paramètres & Guide</h2>
+  <p>📖 Choisis un clan, gagne des Francs Otaku, achète des objets, gère ton village, grimpe en grade, et vise le trône !</p>
+  <button onclick="changerPseudo()">✏️ Changer mon pseudo</button>
+  <button onclick="reinitialiserCache()" style="background:#8b0000;">🗑️ Réinitialiser mon cache local</button>
+  <button onclick="fermerParametres()">Fermer</button>
+</div>
+
+<script type="module" src="script.js"></script>
+</body>
+</html>

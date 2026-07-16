@@ -1,0 +1,141 @@
+* { box-sizing: border-box; }
+
+body {
+    font-family: 'Trebuchet MS', Arial, sans-serif;
+    background: linear-gradient(160deg, #0f0c29, #302b63, #24243e);
+    color: #f0e6ff;
+    text-align: center;
+    padding: 20px;
+    min-height: 100vh;
+    margin: 0;
+}
+
+h1 { color: #ffd166; text-shadow: 2px 2px 6px rgba(0,0,0,0.6); font-size: 26px; }
+h2 { color: #ff6b9d; border-bottom: 2px solid #6b4de6; padding-bottom: 6px; margin-top: 10px; }
+
+.badge {
+    background: rgba(255,209,102,0.15);
+    border: 1px solid #ffd166;
+    display: inline-block;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 14px;
+}
+
+.monnaie { font-size: 18px; color: #7ee787; font-weight: bold; margin: 10px 0; }
+
+.section {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid #6b4de6;
+    border-radius: 14px;
+    padding: 12px;
+    margin: 16px 0;
+}
+
+.boite {
+    background: rgba(0,0,0,0.25);
+    border-radius: 10px;
+    padding: 10px;
+    margin: 10px 0;
+    max-height: 220px;
+    overflow-y: auto;
+    text-align: left;
+    font-size: 14px;
+}
+
+input, select {
+    padding: 10px;
+    border-radius: 8px;
+    border: none;
+    font-size: 15px;
+    margin: 8px 0;
+    width: 85%;
+    max-width: 300px;
+    text-align: center;
+}
+
+input[type="range"] { width: 85%; max-width: 300px; }
+u
+button {
+    background: linear-gradient(145deg, #6b4de6, #4834a6);
+    color: white;
+    border: 1px solid #9b7bff;
+    padding: 10px 18px;
+    margin: 6px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+button:active { transform: scale(0.96); background: #9b7bff; }
+
+.erreur { color: #ff6b6b; font-weight: bold; }
+
+.clanChoix {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid #ffd166;
+    border-radius: 10px;
+    padding: 10px;
+    margin: 8px auto;
+    max-width: 300px;
+}
+
+.membreLigne, .rangLigne {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    padding: 4px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.membreLigne span, .rangLigne span { cursor: pointer; }
+
+.objetBoutique {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(255,209,102,0.08);
+    border: 1px solid #ffd166;
+    border-radius: 10px;
+    padding: 8px 12px;
+    margin: 6px 0;
+}
+
+.panelFlottant {
+    position: fixed;
+    top: 10%;
+    left: 5%;
+    right: 5%;
+    background: #1a1640;
+    border: 2px solid #ffd166;
+    border-radius: 16px;
+    padding: 20px;
+    z-index: 999;
+    box-shadow: 0 0 30px rgba(0,0,0,0.6);
+    text-align: left;
+    max-height: 75vh;
+    overflow-y: auto;
+}
+
+.grilleVillage {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin: 10px 0;
+}
+
+.tuileBatiment {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid #6b4de6;
+    border-radius: 10px;
+    padding: 10px;
+    text-align: center;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.tuileBatiment:active { background: rgba(255,255,255,0.2); }input[type="range"] { width: 85%; max-width: 300px; }
+.grilleVillage { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 10px 0; }
+.tuileBatiment { background: rgba(255,255,255,0.08); border: 1px solid #6b4de6; border-radius: 10px; padding: 10px; text-align: center; font-size: 13px; cursor: pointer; }
+#compteARebours { font-family: monospace; }
