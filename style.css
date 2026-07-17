@@ -1,3 +1,51 @@
+/* ===== CORRECTION AFFICHAGE MOBILE & BARRE D'ÉCRAN ===== */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  width: 100%;
+  min-height: 100vh;
+  overflow-x: hidden; /* Interdit tout dépassement horizontal */
+  padding-top: 35px; /* Décale le contenu pour pas que ça soit caché sous l'heure/batterie */
+  font-family: sans-serif;
+}
+
+/* Ajuste automatiquement tous les blocs */
+div, section, button, input, .membreLigne, .objetBoutique, .tuileBatiment {
+  max-width: 100%;
+  word-wrap: break-word;
+}
+
+button, input {
+  font-size: 16px; /* Évite le zoom sur téléphone quand on clique */
+}
+/* Règles obligatoires pour que ça s'affiche bien sur mobile */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  width: 100%;
+  min-height: 100vh;
+  overflow-x: hidden; /* Empêche le défilement horizontal */
+  padding-top: 5px; /* Laisse un petit espace en haut */
+}
+
+/* Ajuste tous les blocs pour qu'ils prennent la largeur de l'écran */
+div, section, .membreLigne, .objetBoutique, .tuileBatiment {
+  max-width: 100%;
+  word-wrap: break-word;
+}
+
+/* Empêche les éléments de dépasser */
+img, button, input {
+  max-width: 100%;
+}
 * { box-sizing: border-box; }
 
 body {
