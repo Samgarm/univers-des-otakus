@@ -1,27 +1,3 @@
-/* Règles obligatoires pour que ça s'affiche bien sur mobile */
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
-html, body {
-  width: 100%;
-  min-height: 100vh;
-  overflow-x: hidden; /* Empêche le défilement horizontal */
-  padding-top: 5px; /* Laisse un petit espace en haut */
-}
-
-/* Ajuste tous les blocs pour qu'ils prennent la largeur de l'écran */
-div, section, .membreLigne, .objetBoutique, .tuileBatiment {
-  max-width: 100%;
-  word-wrap: break-word;
-}
-
-/* Empêche les éléments de dépasser */
-img, button, input {
-  max-width: 100%;
-}
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
 import {
   getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, collection,
@@ -54,86 +30,86 @@ let avatarChoisi = "🧝";
 let clanInscriptionChoisi = "";
 
 // ---------------- PNJ & ARMÉE ----------------
-fonction  genererPNJ ( )  {
-    const  prenoms = [ "Kiro" , "Yuna" , "Ren" , "Sora" , "Aki" , "Haru" , "Miko" , "Kenji" , "Sayo" , "Riku" , "Ayame" , "Tatsu" , "Nozomi" , "Kaito" , "Mei" , "Shiro" , "Yumi" , "Daiki" , "Emi" , "Rin" ] ;
-    const  suffixes = [ "no Kage" , "le Silencieux" , "du Vent" , "la Flamme" , "de l'Ombre" , "le Rapide" , "des Cimes" , "la Loyale" , "le Sage" , "du Nord" ] ;
-    const  spécialités = [ "Guerrier" , "Archer" , "Stratège" ] ;
-    soit  pnjs = [ ] ;
-    CLANS.forEach ( clan = > {​
-        pour  ( soit  i = 0 ; i < 125 ; i ++ )  {
-            const  nom = prenoms [ Math . floor ( Math . random ( ) * prenoms . length ) ] + " " + suffixes [ Math . floor ( Math . random ( ) * suffixes . length ) ] ;
-            pnjs.push ( { id : " PNJ_ " + clan.slice ( 0 , 3 ) + " _ " + i , pseudo : nom , clan , 
-                spécialité : spécialités [ Math . floor ( Math . random ( ) * spécialités . length ) ] ,
-                prestige : Math . floor ( Math . random ( ) * 150 ) , estPNJ : true  } ) ;
+function genererPNJ() {
+    const prenoms = ["Kiro","Yuna","Ren","Sora","Aki","Haru","Miko","Kenji","Sayo","Riku","Ayame","Tatsu","Nozomi","Kaito","Mei","Shiro","Yumi","Daiki","Emi","Rin"];
+    const suffixes = ["no Kage","le Silencieux","du Vent","la Flamme","de l'Ombre","le Rapide","des Cimes","la Loyale","le Sage","du Nord"];
+    const specialites = ["Guerrier","Archer","Stratège"];
+    let pnjs = [];
+    CLANS.forEach(clan => {
+        for (let i = 0; i < 125; i++) {
+            const nom = prenoms[Math.floor(Math.random()*prenoms.length)] + " " + suffixes[Math.floor(Math.random()*suffixes.length)];
+            pnjs.push({ id: "PNJ_" + clan.slice(0,3) + "_" + i, pseudo: nom, clan,
+                specialite: specialites[Math.floor(Math.random()*specialites.length)],
+                prestige: Math.floor(Math.random()*150), estPNJ: true });
         }
-    } ) ;
-    renvoyer  pnjs ;
+    });
+    return pnjs;
 }
-fonction  genererArmeeSamuel ( )  {
-    const  noms = [ "Garde Impérial" , "Éclaireur" , "Soldat d'élite" , "Ambassadeur" , "Espion" ] ;
-    soit  armee = [ ] ;
-    for  ( let  i = 0 ; i < 300 ; i ++ )  armee . push ( {  nom : noms [ i % noms . length ] + " " + i , force : 20 + Math . floor ( Math . random ( ) * 30 )  } ) ;
-    retourner  armee ;
+function genererArmeeSamuel() {
+    const noms = ["Garde Impérial","Éclaireur","Soldat d'élite","Ambassadeur","Espion"];
+    let armee = [];
+    for (let i = 0; i < 300; i++) armee.push({ nom: noms[i % noms.length] + " " + i, force: 20 + Math.floor(Math.random()*30) });
+    return armee;
 }
 
 // ---------------- CONNEXION ----------------
-fenêtre.seConnecter = fonction asynchrone  ( ) {​​ 
-    const  code = document . getElementById ( 'codeInput' ) . value . trim ( ) ;
-    const  messageEl = document . getElementById ( 'messageConnexion' ) ;
-    if  ( ! code )  {  messageEl.innerText = " Entrez un code. " ; return ; }
+window.seConnecter = async function() {
+    const code = document.getElementById('codeInput').value.trim();
+    const messageEl = document.getElementById('messageConnexion');
+    if (!code) { messageEl.innerText = "Entrez un code."; return; }
 
-    const  saveId = localStorage . getItem ( 'otakus_id' ) ;
-    si  ( savedId && code === CODE_COMMUN )  {
-        const  snap = wait  getDoc ( doc ( db , "membres" , saveId ) ) ;
-        if  ( snap . exists ( ) && ! snap . data ( ) . banni )  {  monId = savedId ; monProfil = snap . data ( ) ; afficherAccueil ( ) ; return ; }
-        stockage local . RemoveItem ( 'otakus_id' ) ;
-        messageEl . innerText = snap . existe ( ) ? "Ce compte a été banni." : "Ton compte n'existe plus. Inscris-toi à nouveau." ;
-        retour ;
+    const savedId = localStorage.getItem('otakus_id');
+    if (savedId && code === CODE_COMMUN) {
+        const snap = await getDoc(doc(db, "membres", savedId));
+        if (snap.exists() && !snap.data().banni) { monId = savedId; monProfil = snap.data(); afficherAccueil(); return; }
+        localStorage.removeItem('otakus_id');
+        messageEl.innerText = snap.exists() ? "Ce compte a été banni." : "Ton compte n'existe plus. Inscris-toi à nouveau.";
+        return;
     }
-    essayer  {
-        const  snap = await  getDoc ( doc ( db , "membres" , code ) ) ;
-        si  ( snap . existe ( ) )  {
-            const  d = snap . data ( ) ;
-            si  ( d . banni )  {  messageEl . innerText = "Ce compte a été banni." ; retour ; }
-            monId = code ; monProfil = d ;
-            stockage local . setItem ( 'otakus_id' , code ) ;
-            afficherAccueil ( ) ;
-        }  else  {  messageEl . innerText = "Code invalide." ; }
-    }  catch  ( e )  {  messageEl . innerText = "Erreur : " + e . message ; }
-} ;
+    try {
+        const snap = await getDoc(doc(db, "membres", code));
+        if (snap.exists()) {
+            const d = snap.data();
+            if (d.banni) { messageEl.innerText = "Ce compte a été banni."; return; }
+            monId = code; monProfil = d;
+            localStorage.setItem('otakus_id', code);
+            afficherAccueil();
+        } else { messageEl.innerText = "Code invalide."; }
+    } catch (e) { messageEl.innerText = "Erreur : " + e.message; }
+};
 
 // ---------------- INSCRIPTION ----------------
-fenêtre . ouvrirInscription = function ( )  {
-    document.getElementById ( ' connexion ' ) . style.display = ' none ' ;
-    document . getElementById ( 'inscription' ) . style . display = 'block' ;
-    const  zoneAv = document . getElementById ( 'choixAvatarInscription' ) ; zoneAv . innerHTML = "" ;
-    AVATARS . forEach ( a => zoneAv . innerHTML += `<button onclick="choisirAvatarInscription(' ${ a } ')"> ${ a } </button>` ) ;
-    const  zone = document . getElementById ( 'listeClansInscription' ) ; zone . interneHTML = "" ;
-    CLANS.forEach ( c = > {​
-        const  div = document . createElement ( 'div' ) ; div . className = 'clanChoix' ;
-        div . innerHTML = `<b> ${ c } </b> <button onclick="choisirClanInscription(' ${ c } ')">Rejoindre</button>` ;
-        zone . appendChild ( div ) ;
-    } ) ;
-} ;
-fenêtre . ChoisirAvatarInscription = function ( a )  {  avatarChoisi = a ; alert ( "Avatar : " + a ) ; } ;
-fenêtre . choisirClanInscription = function ( clan )  {  clanInscriptionChoisi = clan ; alert ( "Clan sélectionné : " + clan ) ; } ;
-fenêtre . retourConnexion = fonction ( )  {
-    document.getElementById ( ' inscription ' ) . style.display = ' none ' ;
-    document.getElementById ( ' recuperation ' ) . style.display = ' none ' ;
-    document . getElementById ( 'connexion' ) . style . display = 'block' ;
-} ;
-fenêtre . ouvrirRécupération = fonction ( )  {
-    document.getElementById ( ' connexion ' ) . style.display = ' none ' ;
-    document.getElementById ( ' recuperation ' ) . style.display = ' block ' ;
-} ;
-fenêtre.validerInscription = fonction asynchrone ( ) {​​  
-    const  codeSaisi = document . getElementById ( 'codeInscriptionInput' ) . value . trim ( ) ;
-    const  pseudo = document . getElementById ( 'pseudoInscriptionInput' ) . value . trim ( ) ;
-    const  specialite = document . getElementById ( 'specialiteInscriptionInput' ) . value ;
-    const  msgEl = document . getElementById ( 'messageInscription' ) ;
+window.ouvrirInscription = function() {
+    document.getElementById('connexion').style.display = 'none';
+    document.getElementById('inscription').style.display = 'block';
+    const zoneAv = document.getElementById('choixAvatarInscription'); zoneAv.innerHTML = "";
+    AVATARS.forEach(a => zoneAv.innerHTML += `<button onclick="choisirAvatarInscription('${a}')">${a}</button>`);
+    const zone = document.getElementById('listeClansInscription'); zone.innerHTML = "";
+    CLANS.forEach(c => {
+        const div = document.createElement('div'); div.className = 'clanChoix';
+        div.innerHTML = `<b>${c}</b> <button onclick="choisirClanInscription('${c}')">Rejoindre</button>`;
+        zone.appendChild(div);
+    });
+};
+window.choisirAvatarInscription = function(a) { avatarChoisi = a; alert("Avatar : " + a); };
+window.choisirClanInscription = function(clan) { clanInscriptionChoisi = clan; alert("Clan sélectionné : " + clan); };
+window.retourConnexion = function() {
+    document.getElementById('inscription').style.display = 'none';
+    document.getElementById('recuperation').style.display = 'none';
+    document.getElementById('connexion').style.display = 'block';
+};
+window.ouvrirRecuperation = function() {
+    document.getElementById('connexion').style.display = 'none';
+    document.getElementById('recuperation').style.display = 'block';
+};
+window.validerInscription = async function() {
+    const codeSaisi = document.getElementById('codeInscriptionInput').value.trim();
+    const pseudo = document.getElementById('pseudoInscriptionInput').value.trim();
+    const specialite = document.getElementById('specialiteInscriptionInput').value;
+    const msgEl = document.getElementById('messageInscription');
 
-    if  ( codeSaisi !== CODE_COMMUN )  {  msgEl . innerText = "Code d'inscription invalide." ; retour ; }
-    if  ( ! pseudo || ! clanInscriptionChoisi )  {  msgEl . innerText = "Renseignez votre pseudo et choisissez un clan." ; retour ; }
+    if (codeSaisi !== CODE_COMMUN) { msgEl.innerText = "Code d'inscription invalide."; return; }
+    if (!pseudo || !clanInscriptionChoisi) { msgEl.innerText = "Renseigne ton pseudo et choisis un clan."; return; }
 
     const dejaExiste = await getDocs(query(collection(db, "membres"), where("pseudo", "==", pseudo)));
     if (!dejaExiste.empty) { msgEl.innerText = "Ce pseudo est déjà pris, choisis-en un autre."; return; }
