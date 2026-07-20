@@ -14,10 +14,9 @@
     <div id="auth-ecran" class="auth-container">
         <div id="connexion" class="auth-box">
             <h1 style="color:#fbbf24;">👑 Empire des Otakus</h1>
-            <p style="color:#9ca3af;">Entrez votre ID (ex: M123456) :</p>
-            <input type="text" id="codeInput" placeholder="Votre ID unique">
+            <input type="text" id="codeInput" placeholder="Votre ID unique (ex: M123456)">
             <button onclick="seConnecter()" class="btn-primary">Se connecter</button>
-            <p id="messageConnexion" style="color:var(--red); margin-top:8px;"></p>
+            <p id="messageConnexion" style="color:var(--red);"></p>
             <div style="display:flex; justify-content:space-around; margin-top:12px; font-size:14px; color:var(--gold); cursor:pointer;">
                 <span onclick="ouvrirInscription()">✨ S'inscrire</span>
                 <span onclick="ouvrirRecuperation()">🔑 Récupérer</span>
@@ -31,7 +30,7 @@
             <div id="choixAvatarInscription" style="display:flex; flex-wrap:wrap; gap:6px; justify-content:center; margin:8px 0;"></div>
             <button onclick="validerInscription()" class="btn-primary">Créer mon compte</button>
             <p id="messageInscription" style="color:var(--red);"></p>
-            <button onclick="retourConnexion()" class="btn-secondary" style="margin-top:8px;">← Retour</button>
+            <button onclick="retourConnexion()" class="btn-secondary">← Retour</button>
         </div>
         <div id="recuperation" class="auth-box" style="display:none;">
             <h2>🔑 Récupérer</h2>
@@ -39,7 +38,7 @@
             <input type="text" id="codeRecuperationInput" placeholder="Code à 6 chiffres">
             <button onclick="recupererCompte()" class="btn-primary">Récupérer</button>
             <p id="messageRecuperation" style="color:var(--red);"></p>
-            <button onclick="retourConnexion()" class="btn-secondary" style="margin-top:8px;">← Retour</button>
+            <button onclick="retourConnexion()" class="btn-secondary">← Retour</button>
         </div>
     </div>
 
@@ -49,18 +48,15 @@
             <div style="display:flex; align-items:center; gap:10px;">
                 <span id="avatarAffiche" style="font-size:28px;"></span>
                 <div>
-                    <div style="display:flex; align-items:center; gap:6px;">
-                        <span id="pseudoAffiche" style="font-weight:bold; font-size:16px;"></span>
-                        <span id="gradeAffiche" class="btn-sm" style="font-size:10px; background:#3b2e6b; padding:2px 8px; border-radius:12px;"></span>
-                    </div>
-                    <span id="clanAffiche" style="font-size:11px; color:#9ca3af;"><i class="fas fa-flag"></i> Aucun clan</span>
+                    <div><span id="pseudoAffiche" style="font-weight:bold; font-size:16px;"></span> <span id="gradeAffiche" class="btn-sm" style="font-size:10px; background:#3b2e6b; padding:2px 8px;"></span></div>
+                    <span id="clanAffiche" style="font-size:11px; color:#9ca3af;"><i class="fas fa-flag"></i> <span id="nomClan">Aucun clan</span></span>
                 </div>
             </div>
         </header>
-        
         <div class="resources-bar">
             <span><i class="fas fa-coins" style="color:var(--gold);"></i> <span id="orAffiche">0</span></span>
             <span><i class="fas fa-trophy" style="color:var(--gold);"></i> <span id="prestigeAffiche">0</span></span>
+            <span><i class="fas fa-cubes" style="color:var(--gold);"></i> <span id="ressMinerais">0</span></span>
         </div>
 
         <!-- ONGLET VILLAGE -->
@@ -86,26 +82,38 @@
             <div class="card"><label>Taux de taxe : <span id="tauxActuel">20</span>%</label><input type="range" min="0" max="100" value="20" onchange="changerTaxe(this.value)" style="width:100%;"></div>
         </div>
 
-        <!-- ONGLET CLAN -->
+        <!-- ONGLET CLAN & ALLIANCE -->
         <div id="ongletClan" class="onglet-container">
-            <h2><i class="fas fa-users"></i> Mon Clan</h2>
+            <h2><i class="fas fa-users"></i> Clan & Alliance</h2>
             <div id="zoneSansClan"><button onclick="creerClan()" class="btn-primary"><i class="fas fa-plus"></i> Créer un clan</button><div id="listeClansDisponibles" class="list-scroll"></div></div>
             <div id="zoneAvecClan" style="display:none;">
                 <div id="listeMembresClan" class="list-scroll"></div>
                 <div class="chat-box"><div id="chatClanBox" class="chat-messages"></div><div class="chat-input"><input type="text" id="messageClanInput" placeholder="Message au clan..."><button onclick="envoyerMessageClan()" class="btn-primary" style="width:auto;"><i class="fas fa-paper-plane"></i></button></div></div>
-                <button onclick="quitterClan()" class="btn-danger">🚪 Quitter</button>
+                <div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;">
+                    <button onclick="creerAlliance()" class="btn-secondary"><i class="fas fa-handshake"></i> Créer une Alliance</button>
+                    <button onclick="quitterClan()" class="btn-danger">🚪 Quitter le clan</button>
+                </div>
+                <div id="panelAlliance" style="display:none; margin-top:10px; border:2px solid var(--gold); border-radius:12px; padding:10px;">
+                    <h4 style="color:var(--gold);">🤝 Mon Alliance</h4>
+                    <div id="membresAlliance" class="list-scroll"></div>
+                    <div id="boutiqueAlliance" class="list-scroll" style="max-height:120px;"></div>
+                    <button onclick="quitterAlliance()" class="btn-danger" style="margin-top:5px;">🚪 Quitter l'alliance</button>
+                </div>
             </div>
         </div>
 
         <!-- ONGLET MONDE & COMBAT -->
         <div id="ongletMonde" class="onglet-container">
             <h2><i class="fas fa-globe-africa"></i> Conquête du Monde</h2>
+            <div id="carteContainer" style="width:100%; height:250px; background:#0d0826; border:2px solid var(--border-glow); border-radius:16px; overflow:hidden; margin:8px 0;">
+                <canvas id="carteCanvas" style="width:100%; height:100%;"></canvas>
+            </div>
             <div style="display:flex; gap:8px; margin:8px 0; flex-wrap:wrap;">
-                <button onclick="explorerNouveauTerritoire()" class="btn-secondary"><i class="fas fa-map-signs"></i> Explorer</button>
+                <button onclick="explorerNouveauTerritoire()" class="btn-secondary"><i class="fas fa-map-signs"></i> Explorer (50🪙)</button>
                 <button onclick="lancerCombatSolo()" class="btn-primary"><i class="fas fa-robot"></i> ⚔️ Mode Solo (IA)</button>
             </div>
             <div class="card"><span>🐉 Le Fléau des Abysses (PV: <span id="bossPV">0</span>)</span><div class="barre-vie-fight"><div id="remplissageBoss" class="vie-fill" style="width:100%; background:var(--red);"></div></div><button onclick="attaquerBoss()" class="btn-primary" style="width:auto; margin-top:5px;">⚔️ Attaquer</button></div>
-            <div class="card"><h3>⚔️ Recherche d'adversaire</h3><input type="text" id="rechercheJoueur" placeholder="Nom du seigneur..." oninput="filtrerAdversaires()" style="width:100%; padding:8px; border-radius:6px; border:none; background:#201b42; color:white;"><div id="listeAdversaires" class="list-scroll"></div></div>
+            <div class="card"><h3>⚔️ Recherche d'adversaire</h3><input type="text" id="rechercheJoueur" placeholder="Nom du seigneur..." oninput="chargerAdversaires()" style="width:100%; padding:8px; border-radius:6px; border:none; background:#201b42; color:white;"><div id="listeAdversaires" class="list-scroll"></div></div>
             <div id="resultatCombat" class="combat-log" style="display:none; margin-top:8px;"></div>
         </div>
 
@@ -113,15 +121,34 @@
         <div id="ongletBoutique" class="onglet-container">
             <h2><i class="fas fa-store-alt"></i> Forge & Marché</h2>
             <div style="display:flex; gap:5px; margin-bottom:10px; flex-wrap:wrap;">
-                <button onclick="afficherSectionBoutique('equipement')" class="btn-sm" style="background:#7c3aed;">🔧 Équipements</button>
-                <button onclick="afficherSectionBoutique('ressources')" class="btn-sm">📦 Ressources</button>
-                <button onclick="afficherSectionBoutique('tactiques')" class="btn-sm">📜 Tactiques</button>
-                <button onclick="afficherSectionBoutique('defense')" class="btn-sm">🛡️ Défense</button>
+                <button onclick="afficherBoutiqueComplete()" class="btn-sm" style="background:#7c3aed;">🛒 Boutique</button>
+                <button onclick="ouvrirForge()" class="btn-sm" style="color:var(--gold);">🔥 Forger</button>
+                <button onclick="ouvrirMarche()" class="btn-sm">💰 Marché</button>
             </div>
             <div id="sectionBoutiqueContainer" class="card" style="min-height:150px;"></div>
+            <div id="panelForge" style="display:none; margin-top:10px; border:1px solid var(--gold); border-radius:12px; padding:10px;">
+                <h4>🔥 Atelier de Forge</h4>
+                <div id="forgeInterface"></div>
+            </div>
+            <div id="panelMarche" style="display:none; margin-top:10px; border:1px solid var(--green); border-radius:12px; padding:10px;">
+                <h4>💰 Halle du Marché</h4>
+                <div id="marcheInterface"></div>
+            </div>
         </div>
 
-        <!-- ONGLET PROFIL & CLASSEMENT -->
+        <!-- ONGLET INVENTAIRE -->
+        <div id="ongletInventaire" class="onglet-container">
+            <h2><i class="fas fa-boxes"></i> Mon Inventaire</h2>
+            <div style="display:flex; gap:5px; margin-bottom:10px; flex-wrap:wrap;">
+                <button onclick="afficherInventaire('tout')" class="btn-sm" style="background:#7c3aed;">📦 Tout</button>
+                <button onclick="afficherInventaire('guerre')" class="btn-sm">⚔️ Guerre</button>
+                <button onclick="afficherInventaire('ressources')" class="btn-sm">📦 Ressources</button>
+                <button onclick="afficherInventaire('tactiques')" class="btn-sm">📜 Tactiques</button>
+            </div>
+            <div id="inventaireContainer" class="card" style="min-height:200px;"></div>
+        </div>
+
+        <!-- ONGLET PROFIL -->
         <div id="ongletProfil" class="onglet-container">
             <h2><i class="fas fa-id-badge"></i> Mon Profil</h2>
             <div id="statsBox" style="display:grid; grid-template-columns:1fr 1fr; gap:8px; text-align:center;"></div>
@@ -132,27 +159,29 @@
             <h3 style="margin-top:15px;">🏆 Classements</h3>
             <div style="display:flex; gap:5px;"><button onclick="afficherClassementPar('prestige')" class="btn-sm">Prestige</button><button onclick="afficherClassementPar('force')" class="btn-sm">Force</button></div>
             <div id="classementDynamique" class="list-scroll"></div>
+            <div id="panelAdminDieu" class="divine-panel" style="display:none;">
+                <h3 style="color:var(--gold);"><i class="fas fa-bolt"></i> PANEL DU CRÉATEUR</h3>
+                <button onclick="dieuResetPNJ()" class="btn-danger" style="width:100%; margin:4px 0;">⚡ Réincarner les Légats (Force 800)</button>
+                <button onclick="dieuFrapperBoss()" class="btn-danger" style="width:100%; margin:4px 0;">🐉 Exécuter le Fléau</button>
+                <button onclick="dieuDelugeOr()" class="btn-primary" style="width:100%; margin:4px 0;">💰 Déluge d'Or (+50🪙 tous)</button>
+                <button onclick="dieuGuerreImmediate()" class="btn-secondary" style="width:100%; margin:4px 0;">🔥 Guerre des Royaumes Immédiate</button>
+            </div>
             <button onclick="seDeconnecter()" class="btn-danger" style="margin-top:15px; width:100%;">🚪 Déconnexion</button>
         </div>
 
-        <!-- NAVIGATION BASSE -->
+        <!-- NAVIGATION -->
         <nav id="navFixe">
             <button onclick="changerOnglet('Village')"><i class="fas fa-chess-rook"></i>Village</button>
             <button onclick="changerOnglet('Clan')"><i class="fas fa-users"></i>Clan</button>
             <button onclick="changerOnglet('Monde')"><i class="fas fa-globe"></i>Monde</button>
             <button onclick="changerOnglet('Boutique')"><i class="fas fa-store"></i>Forge</button>
+            <button onclick="changerOnglet('Inventaire')"><i class="fas fa-boxes"></i>Inventaire</button>
             <button onclick="changerOnglet('Profil')"><i class="fas fa-user-cog"></i>Profil</button>
         </nav>
     </div>
-
-    <!-- MODALES (POPUPS) -->
-    <div id="panelCombat" class="modal"><div class="modal-content"><h3>⚔️ COMBAT</h3><div class="combat-fighters"><div class="fighter-card"><div id="avatarJoueur" class="fighter-icon"></div><span id="nomJoueur" style="font-size:12px;"></span><div class="barre-vie-fight"><div id="pvJoueur" class="vie-fill" style="width:100%"></div></div></div><h2 style="color:var(--gold);">VS</h2><div class="fighter-card"><div id="avatarAdv" class="fighter-icon"></div><span id="nomAdv" style="font-size:12px;"></span><div class="barre-vie-fight"><div id="pvAdv" class="vie-fill" style="width:100%"></div></div></div></div><div id="combatLog" class="combat-log"></div><button onclick="fermerCombat()" class="btn-primary">Fermer</button></div></div>
-    <div id="panelCodex" class="modal"><div class="modal-content"><h2>📜 Le Codex des Légendes</h2><div style="text-align:left; max-height:60vh; overflow-y:auto; font-size:14px;"><h3 style="color:var(--gold);">🌍 L'Apogée des Clans</h3><p>Il y a 1000 ans, 5 Anciens Gardiens scellèrent le monde sous leur joug : le Dragon d'Émeraude, la Reine des Glaces, le Sorcier de l'Ombre, le Colosse de Pierre et le Nécromancien. Mais aujourd'hui, leur sceau se brise, et leurs Légats déferlent sur le monde...</p><h3 style="color:var(--gold);">👑 Le But Ultime</h3><p>Votre quête est de bâtir votre village, de forger des reliques légendaires, et de former des alliances pour repousser les Légats. Tous les 7 jours, la Guerre des Royaumes désigne le clan le plus puissant. Le Roi du Monde règne sur tous et reçoit les faveurs des dieux.</p></div><button onclick="fermerCodex()" class="btn-primary">Fermer</button></div></div>
-    <div id="panelTutoriel" class="modal"><div class="modal-content" style="text-align:center;"><span style="font-size:48px;">🧙‍♂️</span><h3 style="color:var(--gold);">Le Sage Samuel</h3><p id="tutorielTexte" style="margin:15px 0;"></p><div style="display:flex; gap:8px; justify-content:center;"><button id="btnTutoPrev" onclick="precedentTutoriel()" class="btn-secondary" style="display:none;">◀</button><button id="btnTutoNext" onclick="suivantTutoriel()" class="btn-primary">Suivant ▶</button><button id="btnTutoFin" onclick="finirTutoriel()" class="btn-primary" style="display:none;">🏆 Commencer</button></div><div style="margin-top:10px;"><span id="tutoStep">1/7</span><div style="height:4px; background:#333; border-radius:4px; margin-top:4px;"><div id="tutoBar" style="height:100%; background:var(--gold); width:14%; border-radius:4px;"></div></div></div></div></div>
-
     <div id="toast-container"></div>
 </div>
 <script type="module" src="script.js"></script>
 <script>if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js');</script>
 </body>
-    </html>
+                </html>
