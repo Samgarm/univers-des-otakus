@@ -25,16 +25,16 @@
         <div id="inscription" class="auth-box" style="display:none;">
             <h2>✨ Inscription</h2>
             <p style="font-size:12px; color:#9ca3af;">Code d'inscription : OTAKU2026</p>
-            <input type="text" id="pseudoInscriptionInput" placeholder="Choisis ton pseudo">
+            <input type="text" id="pseudoInscriptionInput" placeholder="Pseudo">
             <select id="specialiteInscriptionInput"><option value="Guerrier">⚔️ Guerrier</option><option value="Archer">🏹 Archer</option><option value="Stratège">🧠 Stratège</option></select>
             <div id="choixAvatarInscription" style="display:flex; flex-wrap:wrap; gap:6px; justify-content:center; margin:8px 0;"></div>
-            <button onclick="validerInscription()" class="btn-primary">Créer mon compte</button>
+            <button onclick="validerInscription()" class="btn-primary">Créer</button>
             <p id="messageInscription" style="color:var(--red);"></p>
             <button onclick="retourConnexion()" class="btn-secondary">← Retour</button>
         </div>
         <div id="recuperation" class="auth-box" style="display:none;">
             <h2>🔑 Récupérer</h2>
-            <p style="font-size:12px; color:#9ca3af;">Rentre ton code de récupération à 6 chiffres :</p>
+            <p style="font-size:12px; color:#9ca3af;">Code de récupération à 6 chiffres :</p>
             <input type="text" id="codeRecuperationInput" placeholder="Code à 6 chiffres">
             <button onclick="recupererCompte()" class="btn-primary">Récupérer</button>
             <p id="messageRecuperation" style="color:var(--red);"></p>
@@ -80,6 +80,7 @@
             </div>
             <div id="batimentsVillage" class="grid-3"></div>
             <div class="card"><label>Taux de taxe : <span id="tauxActuel">20</span>%</label><input type="range" min="0" max="100" value="20" onchange="changerTaxe(this.value)" style="width:100%;"></div>
+            <div class="card" style="border-color:#7c3aed;"><h4>🏛️ Le Régent (Administrateur)</h4><div id="slotRegent" style="display:flex; gap:10px; align-items:center; margin-top:5px;"></div></div>
         </div>
 
         <!-- ONGLET CLAN & ALLIANCE -->
@@ -169,7 +170,7 @@
             <button onclick="seDeconnecter()" class="btn-danger" style="margin-top:15px; width:100%;">🚪 Déconnexion</button>
         </div>
 
-        <!-- NAVIGATION -->
+        <!-- NAVIGATION BASSE -->
         <nav id="navFixe">
             <button onclick="changerOnglet('Village')"><i class="fas fa-chess-rook"></i>Village</button>
             <button onclick="changerOnglet('Clan')"><i class="fas fa-users"></i>Clan</button>
@@ -184,4 +185,4 @@
 <script type="module" src="script.js"></script>
 <script>if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js');</script>
 </body>
-                </html>
+    </html>
