@@ -1,188 +1,164 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Empire des Otakus - Légendes Éternelles</title>
-    <link rel="manifest" href="manifest.json">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-    <link rel="stylesheet" href="style.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Lyon : l'Éveil</title>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
 <body>
-<div id="app">
-    <!-- AUTH -->
-    <div id="auth-ecran" class="auth-container">
-        <div id="connexion" class="auth-box">
-            <h1 style="color:#fbbf24;">👑 Empire des Otakus</h1>
-            <input type="text" id="codeInput" placeholder="Votre ID unique (ex: M123456)">
-            <button onclick="seConnecter()" class="btn-primary">Se connecter</button>
-            <p id="messageConnexion" style="color:var(--red);"></p>
-            <div style="display:flex; justify-content:space-around; margin-top:12px; font-size:14px; color:var(--gold); cursor:pointer;">
-                <span onclick="ouvrirInscription()">✨ S'inscrire</span>
-                <span onclick="ouvrirRecuperation()">🔑 Récupérer</span>
-            </div>
-        </div>
-        <div id="inscription" class="auth-box" style="display:none;">
-            <h2>✨ Inscription</h2>
-            <p style="font-size:12px; color:#9ca3af;">Code d'inscription : OTAKU2026</p>
-            <input type="text" id="pseudoInscriptionInput" placeholder="Pseudo">
-            <select id="specialiteInscriptionInput"><option value="Guerrier">⚔️ Guerrier</option><option value="Archer">🏹 Archer</option><option value="Stratège">🧠 Stratège</option></select>
-            <div id="choixAvatarInscription" style="display:flex; flex-wrap:wrap; gap:6px; justify-content:center; margin:8px 0;"></div>
-            <button onclick="validerInscription()" class="btn-primary">Créer</button>
-            <p id="messageInscription" style="color:var(--red);"></p>
-            <button onclick="retourConnexion()" class="btn-secondary">← Retour</button>
-        </div>
-        <div id="recuperation" class="auth-box" style="display:none;">
-            <h2>🔑 Récupérer</h2>
-            <p style="font-size:12px; color:#9ca3af;">Code de récupération à 6 chiffres :</p>
-            <input type="text" id="codeRecuperationInput" placeholder="Code à 6 chiffres">
-            <button onclick="recupererCompte()" class="btn-primary">Récupérer</button>
-            <p id="messageRecuperation" style="color:var(--red);"></p>
-            <button onclick="retourConnexion()" class="btn-secondary">← Retour</button>
+
+<!-- ===================== AUTHENTIFICATION (réelle, Firebase) ===================== -->
+<div id="login-screen">
+    <div id="login-overlay" class="auth-overlay">
+        <h1>⚔️ Lyon : l'Éveil</h1>
+        <p>Le destin t'appelle</p>
+        <input type="text" class="input-premium" id="codeInput" placeholder="Ton code de connexion">
+        <button class="btn-gold" onclick="seConnecter()">⚔️ Se connecter</button>
+        <p class="auth-msg" id="messageConnexion"></p>
+        <div class="auth-links">
+            <span onclick="ouvrirEcran('inscription-overlay')">✨ S'inscrire</span>
+            <span onclick="ouvrirEcran('recuperation-overlay')">🔑 Récupérer</span>
         </div>
     </div>
 
-    <!-- JEU -->
-    <div id="game-ecran" style="display:none;">
-        <header class="app-header">
-            <div style="display:flex; align-items:center; gap:10px;">
-                <span id="avatarAffiche" style="font-size:28px;"></span>
-                <div>
-                    <div><span id="pseudoAffiche" style="font-weight:bold; font-size:16px;"></span> <span id="gradeAffiche" class="btn-sm" style="font-size:10px; background:#3b2e6b; padding:2px 8px;"></span></div>
-                    <span id="clanAffiche" style="font-size:11px; color:#9ca3af;"><i class="fas fa-flag"></i> <span id="nomClan">Aucun clan</span></span>
-                </div>
-            </div>
-        </header>
-        <div class="resources-bar">
-            <span><i class="fas fa-coins" style="color:var(--gold);"></i> <span id="orAffiche">0</span></span>
-            <span><i class="fas fa-trophy" style="color:var(--gold);"></i> <span id="prestigeAffiche">0</span></span>
-            <span><i class="fas fa-cubes" style="color:var(--gold);"></i> <span id="ressMinerais">0</span></span>
-        </div>
-
-        <!-- ONGLET VILLAGE -->
-        <div id="ongletVillage" class="onglet-container">
-            <h2><i class="fas fa-chess-rook"></i> Mon Village</h2>
-            <div class="card">
-                <div style="display:flex; justify-content:space-between;">
-                    <span id="infosVillage"></span>
-                    <span id="constructionEnCours" style="color:var(--gold);"></span>
-                </div>
-                <div class="ressource-grid" style="display:flex; gap:20px; justify-content:center; padding:8px 0;">
-                    <span><i class="fas fa-tree"></i> <span id="ress-bois">0</span></span>
-                    <span><i class="fas fa-mountain"></i> <span id="ress-pierre">0</span></span>
-                    <span><i class="fas fa-seedling"></i> <span id="ress-nourriture">0</span></span>
-                </div>
-                <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:center;">
-                    <button onclick="collecterRessources()" class="btn-secondary" style="font-size:12px;">🌿 Récolter</button>
-                    <button onclick="collecterImpots()" class="btn-secondary" style="font-size:12px;">💰 Taxes</button>
-                    <button onclick="activerCarteDePaix()" class="btn-secondary" style="font-size:12px;">🛡️ Bouclier (24h)</button>
-                </div>
-            </div>
-            <div id="batimentsVillage" class="grid-3"></div>
-            <div class="card"><label>Taux de taxe : <span id="tauxActuel">20</span>%</label><input type="range" min="0" max="100" value="20" onchange="changerTaxe(this.value)" style="width:100%;"></div>
-            <div class="card" style="border-color:#7c3aed;"><h4>🏛️ Le Régent (Administrateur)</h4><div id="slotRegent" style="display:flex; gap:10px; align-items:center; margin-top:5px;"></div></div>
-        </div>
-
-        <!-- ONGLET CLAN & ALLIANCE -->
-        <div id="ongletClan" class="onglet-container">
-            <h2><i class="fas fa-users"></i> Clan & Alliance</h2>
-            <div id="zoneSansClan"><button onclick="creerClan()" class="btn-primary"><i class="fas fa-plus"></i> Créer un clan</button><div id="listeClansDisponibles" class="list-scroll"></div></div>
-            <div id="zoneAvecClan" style="display:none;">
-                <div id="listeMembresClan" class="list-scroll"></div>
-                <div class="chat-box"><div id="chatClanBox" class="chat-messages"></div><div class="chat-input"><input type="text" id="messageClanInput" placeholder="Message au clan..."><button onclick="envoyerMessageClan()" class="btn-primary" style="width:auto;"><i class="fas fa-paper-plane"></i></button></div></div>
-                <div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;">
-                    <button onclick="creerAlliance()" class="btn-secondary"><i class="fas fa-handshake"></i> Créer une Alliance</button>
-                    <button onclick="quitterClan()" class="btn-danger">🚪 Quitter le clan</button>
-                </div>
-                <div id="panelAlliance" style="display:none; margin-top:10px; border:2px solid var(--gold); border-radius:12px; padding:10px;">
-                    <h4 style="color:var(--gold);">🤝 Mon Alliance</h4>
-                    <div id="membresAlliance" class="list-scroll"></div>
-                    <div id="boutiqueAlliance" class="list-scroll" style="max-height:120px;"></div>
-                    <button onclick="quitterAlliance()" class="btn-danger" style="margin-top:5px;">🚪 Quitter l'alliance</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- ONGLET MONDE & COMBAT -->
-        <div id="ongletMonde" class="onglet-container">
-            <h2><i class="fas fa-globe-africa"></i> Conquête du Monde</h2>
-            <div id="carteContainer" style="width:100%; height:250px; background:#0d0826; border:2px solid var(--border-glow); border-radius:16px; overflow:hidden; margin:8px 0;">
-                <canvas id="carteCanvas" style="width:100%; height:100%;"></canvas>
-            </div>
-            <div style="display:flex; gap:8px; margin:8px 0; flex-wrap:wrap;">
-                <button onclick="explorerNouveauTerritoire()" class="btn-secondary"><i class="fas fa-map-signs"></i> Explorer (50🪙)</button>
-                <button onclick="lancerCombatSolo()" class="btn-primary"><i class="fas fa-robot"></i> ⚔️ Mode Solo (IA)</button>
-            </div>
-            <div class="card"><span>🐉 Le Fléau des Abysses (PV: <span id="bossPV">0</span>)</span><div class="barre-vie-fight"><div id="remplissageBoss" class="vie-fill" style="width:100%; background:var(--red);"></div></div><button onclick="attaquerBoss()" class="btn-primary" style="width:auto; margin-top:5px;">⚔️ Attaquer</button></div>
-            <div class="card"><h3>⚔️ Recherche d'adversaire</h3><input type="text" id="rechercheJoueur" placeholder="Nom du seigneur..." oninput="chargerAdversaires()" style="width:100%; padding:8px; border-radius:6px; border:none; background:#201b42; color:white;"><div id="listeAdversaires" class="list-scroll"></div></div>
-            <div id="resultatCombat" class="combat-log" style="display:none; margin-top:8px;"></div>
-        </div>
-
-        <!-- ONGLET BOUTIQUE & FORGE -->
-        <div id="ongletBoutique" class="onglet-container">
-            <h2><i class="fas fa-store-alt"></i> Forge & Marché</h2>
-            <div style="display:flex; gap:5px; margin-bottom:10px; flex-wrap:wrap;">
-                <button onclick="afficherBoutiqueComplete()" class="btn-sm" style="background:#7c3aed;">🛒 Boutique</button>
-                <button onclick="ouvrirForge()" class="btn-sm" style="color:var(--gold);">🔥 Forger</button>
-                <button onclick="ouvrirMarche()" class="btn-sm">💰 Marché</button>
-            </div>
-            <div id="sectionBoutiqueContainer" class="card" style="min-height:150px;"></div>
-            <div id="panelForge" style="display:none; margin-top:10px; border:1px solid var(--gold); border-radius:12px; padding:10px;">
-                <h4>🔥 Atelier de Forge</h4>
-                <div id="forgeInterface"></div>
-            </div>
-            <div id="panelMarche" style="display:none; margin-top:10px; border:1px solid var(--green); border-radius:12px; padding:10px;">
-                <h4>💰 Halle du Marché</h4>
-                <div id="marcheInterface"></div>
-            </div>
-        </div>
-
-        <!-- ONGLET INVENTAIRE -->
-        <div id="ongletInventaire" class="onglet-container">
-            <h2><i class="fas fa-boxes"></i> Mon Inventaire</h2>
-            <div style="display:flex; gap:5px; margin-bottom:10px; flex-wrap:wrap;">
-                <button onclick="afficherInventaire('tout')" class="btn-sm" style="background:#7c3aed;">📦 Tout</button>
-                <button onclick="afficherInventaire('guerre')" class="btn-sm">⚔️ Guerre</button>
-                <button onclick="afficherInventaire('ressources')" class="btn-sm">📦 Ressources</button>
-                <button onclick="afficherInventaire('tactiques')" class="btn-sm">📜 Tactiques</button>
-            </div>
-            <div id="inventaireContainer" class="card" style="min-height:200px;"></div>
-        </div>
-
-        <!-- ONGLET PROFIL -->
-        <div id="ongletProfil" class="onglet-container">
-            <h2><i class="fas fa-id-badge"></i> Mon Profil</h2>
-            <div id="statsBox" style="display:grid; grid-template-columns:1fr 1fr; gap:8px; text-align:center;"></div>
-            <button onclick="travailler()" class="btn-secondary" style="width:100%;">💼 Travailler (45 min)</button>
-            <h3 style="margin-top:15px;">📜 Codex des Légendes</h3>
-            <button onclick="lancerTutorielManuel()" class="btn-secondary">📖 Revoir le Tutoriel de Samuel</button>
-            <button onclick="ouvrirCodex()" class="btn-secondary">📜 Lire le Codex</button>
-            <h3 style="margin-top:15px;">🏆 Classements</h3>
-            <div style="display:flex; gap:5px;"><button onclick="afficherClassementPar('prestige')" class="btn-sm">Prestige</button><button onclick="afficherClassementPar('force')" class="btn-sm">Force</button></div>
-            <div id="classementDynamique" class="list-scroll"></div>
-            <div id="panelAdminDieu" class="divine-panel" style="display:none;">
-                <h3 style="color:var(--gold);"><i class="fas fa-bolt"></i> PANEL DU CRÉATEUR</h3>
-                <button onclick="dieuResetPNJ()" class="btn-danger" style="width:100%; margin:4px 0;">⚡ Réincarner les Légats (Force 800)</button>
-                <button onclick="dieuFrapperBoss()" class="btn-danger" style="width:100%; margin:4px 0;">🐉 Exécuter le Fléau</button>
-                <button onclick="dieuDelugeOr()" class="btn-primary" style="width:100%; margin:4px 0;">💰 Déluge d'Or (+50🪙 tous)</button>
-                <button onclick="dieuGuerreImmediate()" class="btn-secondary" style="width:100%; margin:4px 0;">🔥 Guerre des Royaumes Immédiate</button>
-            </div>
-            <button onclick="seDeconnecter()" class="btn-danger" style="margin-top:15px; width:100%;">🚪 Déconnexion</button>
-        </div>
-
-        <!-- NAVIGATION BASSE -->
-        <nav id="navFixe">
-            <button onclick="changerOnglet('Village')"><i class="fas fa-chess-rook"></i>Village</button>
-            <button onclick="changerOnglet('Clan')"><i class="fas fa-users"></i>Clan</button>
-            <button onclick="changerOnglet('Monde')"><i class="fas fa-globe"></i>Monde</button>
-            <button onclick="changerOnglet('Boutique')"><i class="fas fa-store"></i>Forge</button>
-            <button onclick="changerOnglet('Inventaire')"><i class="fas fa-boxes"></i>Inventaire</button>
-            <button onclick="changerOnglet('Profil')"><i class="fas fa-user-cog"></i>Profil</button>
-        </nav>
+    <div id="inscription-overlay" class="auth-overlay" style="display:none;">
+        <h2>✨ Créer un guerrier</h2>
+        <p style="font-size:11px;color:#9ca3af;font-style:normal;margin-bottom:8px;">Code d'inscription : LYON2026</p>
+        <input type="text" class="input-premium" id="codeInscriptionInput" placeholder="Code d'inscription">
+        <input type="text" class="input-premium" id="pseudoInscriptionInput" placeholder="Ton nom de guerrier">
+        <button class="btn-gold" onclick="validerInscription()">Créer</button>
+        <p class="auth-msg" id="messageInscription"></p>
+        <button class="btn-purple" onclick="ouvrirEcran('login-overlay')">← Retour</button>
     </div>
-    <div id="toast-container"></div>
+
+    <div id="recuperation-overlay" class="auth-overlay" style="display:none;">
+        <h2>🔑 Récupérer</h2>
+        <p style="font-size:11px;color:#9ca3af;font-style:normal;margin-bottom:8px;">Code de récupération à 6 chiffres :</p>
+        <input type="text" class="input-premium" id="codeRecuperationInput" placeholder="Code à 6 chiffres">
+        <button class="btn-gold" onclick="recupererCompte()">Récupérer</button>
+        <p class="auth-msg" id="messageRecuperation"></p>
+        <button class="btn-purple" onclick="ouvrirEcran('login-overlay')">← Retour</button>
+    </div>
+
+    <div id="coderecup-overlay" class="auth-overlay" style="display:none;">
+        <h2>🔑 Ton code de récupération</h2>
+        <p style="font-size:12px;color:#9ca3af;font-style:normal;">Note-le bien, il permet de récupérer ton compte.</p>
+        <div id="codeRecupAffiche"></div>
+        <p style="font-size:12px;color:#9ca3af;font-style:normal;">Ton code de connexion : <b id="idAffiche" style="color:var(--gold);"></b></p>
+        <button class="btn-gold" onclick="fermerCodeRecup()">C'est noté, continuer</button>
+    </div>
 </div>
+
+<div id="loading-overlay"><div class="loading-spinner"></div><span>Le royaume s'éveille...</span></div>
+
+<div id="game-ui">
+    <div id="gains-flottants"></div>
+
+    <!-- ================= HUD HAUT ================= -->
+    <div id="top-hud">
+        <div class="hud-player-row">
+            <div class="avatar-box" id="avatarBox">👑</div>
+            <div class="player-info">
+                <div class="pname" id="pnameAffiche">Guerrier</div>
+                <div class="prank">⚡ Puissance : <span id="puissanceAffiche">0</span></div>
+            </div>
+            <div class="city-badge">
+                <div class="cname" id="hudCityName">Lyon</div>
+            </div>
+        </div>
+        <div class="hud-resource-row">
+            <div class="res-chip food"><i class="fas fa-wheat-awn"></i><span id="hudNourriture">0</span></div>
+            <div class="res-chip wood"><i class="fas fa-tree"></i><span id="hudBois">0</span></div>
+            <div class="res-chip stone"><i class="fas fa-mountain"></i><span id="hudPierre">0</span></div>
+            <div class="res-chip iron"><i class="fas fa-cubes"></i><span id="hudFer">0</span></div>
+            <div class="gold-count"><i class="fas fa-coins"></i><span id="hudOr">0</span></div>
+        </div>
+        <div class="hud-ticker">📯 Bienvenue dans le Royaume — construis, entraîne tes troupes, et pars à la conquête du Monde.</div>
+    </div>
+
+    <!-- ================= ZONE CARTE ================= -->
+    <div id="main-container">
+        <div id="map-viewport">
+            <div id="map-canvas"></div>
+        </div>
+
+        <div id="advisor" class="show">
+            <div class="advisor-portrait"><i class="fas fa-user"></i></div>
+            <div class="advisor-bubble">
+                <span class="advisor-close" onclick="document.getElementById('advisor').classList.remove('show')">✕</span>
+                Touche un bâtiment pour l'améliorer, ou pars explorer <b>le Monde</b> en bas à droite.
+            </div>
+        </div>
+
+        <div id="recenter-btn" onclick="recentrerCarte()"><i class="fas fa-crosshairs"></i></div>
+
+        <div id="drawer-backdrop" onclick="fermerTiroir()"></div>
+
+        <div id="drawer-alliance" class="drawer"><div class="drawer-handle"></div><h2>🤝 Alliance</h2><p class="hint">Bientôt disponible.</p></div>
+        <div id="drawer-courrier" class="drawer"><div class="drawer-handle"></div><h2>✉️ Courrier</h2><p class="hint">Bientôt disponible.</p></div>
+        <div id="drawer-articles" class="drawer"><div class="drawer-handle"></div><h2>🎒 Articles</h2><p class="hint">Bientôt disponible.</p></div>
+        <div id="drawer-recruter" class="drawer"><div class="drawer-handle"></div><h2>🎖️ Recruter</h2><p class="hint">Bientôt disponible.</p></div>
+        <div id="drawer-artisanat" class="drawer"><div class="drawer-handle"></div><h2>⚒️ Artisanat</h2><p class="hint">Va à la Forge sur la carte pour fabriquer de l'équipement.</p></div>
+        <div id="drawer-baraques" class="drawer"><div class="drawer-handle"></div><h2>⚔️ Caserne — Entraîner des troupes</h2><div id="troupesList"></div></div>
+        <div id="drawer-rassemblement" class="drawer"><div class="drawer-handle"></div><h2>🚩 Camp de rassemblement</h2><p class="hint">Choisis tes troupes puis lance le rassemblement.</p><div id="rassemblementList"></div></div>
+        <div id="drawer-forgeron" class="drawer"><div class="drawer-handle"></div><h2>🔨 Forge — Équipements</h2><div id="equipementList"></div></div>
+        <div id="drawer-attaque" class="drawer">
+            <div class="drawer-handle"></div>
+            <h2 id="attaqueTitle">⚔️ Attaque</h2>
+            <div id="attaqueTroupes"></div>
+            <button onclick="lancerAttaque()" style="background:var(--gold); color:#0a061d; border:none; padding:12px; border-radius:10px; font-weight:bold; width:100%; cursor:pointer; font-size:14px;">⚔️ Lancer l'attaque</button>
+        </div>
+        <div id="drawer-march" class="drawer"><div class="drawer-handle"></div><h2>🐎 Armées en marche</h2><div id="marchList"></div></div>
+        <div id="drawer-battle" class="drawer"><div class="drawer-handle"></div><h2>⚔️ Formations</h2><p class="hint">Organise tes troupes avant la bataille.</p></div>
+        <div id="drawer-research" class="drawer"><div class="drawer-handle"></div><h2>🧪 Recherche</h2><p class="hint">Bientôt disponible.</p></div>
+        <div id="drawer-chat" class="drawer"><div class="drawer-handle"></div><h2>💬 Chat mondial</h2><div id="chatMessages" class="chat-scroll"></div><div class="chat-input-row"><input type="text" id="chatInput" class="input-premium" placeholder="Ton message..." style="margin:0;"><button onclick="envoyerMessageChat()" class="btn-gold" style="width:auto;margin:0;padding:10px 16px;"><i class="fas fa-paper-plane"></i></button></div></div>
+
+        <div id="build-modal-backdrop" onclick="if(event.target===this) fermerModal()"><div id="build-modal"></div></div>
+    </div>
+
+    <!-- ================= ACTIONS RAPIDES ================= -->
+    <div id="quick-actions">
+        <button class="qa-btn" onclick="toggleVue()"><i class="fas fa-chevron-up"></i></button>
+        <button class="qa-btn" onclick="toggleTiroir('march')"><i class="fas fa-horse"></i><span>Marche</span></button>
+        <button class="qa-btn" onclick="toggleTiroir('battle')"><i class="fas fa-swords"></i><span>Combat</span></button>
+        <button class="qa-btn" onclick="toggleTiroir('research')"><i class="fas fa-flask"></i><span>Recherche</span></button>
+        <button class="qa-btn" onclick="toggleTiroir('build')" style="border-right:none;"><i class="fas fa-gavel"></i><span>Bâtir</span></button>
+    </div>
+
+    <!-- ================= CHAT ================= -->
+    <div id="chat-strip" onclick="toggleTiroir('chat')">
+        <i class="fas fa-globe chat-globe"></i>
+        <div class="chat-lines"><div>Chat à venir</div></div>
+        <i class="fas fa-comment-dots chat-bubble"></i>
+    </div>
+
+    <!-- ================= NAV PRINCIPALE ================= -->
+    <div id="bottom-nav">
+        <button class="nav-btn active" id="nav-ville" onclick="toggleVue()">
+            <div class="nav-icon"><i class="fas fa-landmark"></i></div><span id="nav-ville-label">Ville</span>
+        </button>
+        <button class="nav-btn" onclick="toggleTiroir('articles')">
+            <div class="nav-icon"><i class="fas fa-briefcase"></i></div><span>Articles</span>
+        </button>
+        <button class="nav-btn" onclick="toggleTiroir('alliance')">
+            <div class="nav-icon"><i class="fas fa-flag"></i></div><span>Alliance</span>
+        </button>
+        <button class="nav-btn" onclick="toggleTiroir('courrier')">
+            <div class="nav-icon"><i class="fas fa-envelope"></i></div><span>Courrier</span>
+        </button>
+        <button class="nav-btn" onclick="toggleTiroir('recruter')">
+            <div class="nav-icon"><i class="fas fa-helmet-safety"></i></div><span>Recruter</span>
+        </button>
+        <button class="nav-btn" onclick="toggleTiroir('artisanat')">
+            <div class="nav-icon"><i class="fas fa-hammer"></i></div><span>Artisanat</span>
+        </button>
+    </div>
+</div>
+
+<div id="toast"></div>
+
 <script type="module" src="script.js"></script>
-<script>if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js');</script>
 </body>
-    </html>
+</html>
