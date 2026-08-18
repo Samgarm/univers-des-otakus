@@ -75,7 +75,7 @@
             <div class="res-chip iron"><i class="fas fa-cubes"></i><span id="hudFer">0</span></div>
             <div class="gold-count"><i class="fas fa-coins"></i><span id="hudOr">0</span></div>
         </div>
-        <div class="hud-ticker">📯 Bienvenue dans le Royaume — construis, entraîne tes troupes, et pars à la conquête du Monde.</div>
+        <div class="hud-ticker" id="hudTicker" onclick="toggleTiroir('journal')">📯 Bienvenue dans le Royaume — construis, entraîne tes troupes, et pars à la conquête du Monde.</div>
     </div>
 
     <!-- ================= ZONE CARTE ================= -->
@@ -93,12 +93,23 @@
         </div>
 
         <div id="recenter-btn" onclick="recentrerCarte()"><i class="fas fa-crosshairs"></i></div>
+        <div id="map-vignette"></div>
+        <div id="particules-container"></div>
+        <div id="music-toggle" onclick="basculerMusique()"><i class="fas fa-volume-up" id="musicIcon"></i></div>
 
         <div id="drawer-backdrop" onclick="fermerTiroir()"></div>
 
-        <div id="drawer-alliance" class="drawer"><div class="drawer-handle"></div><h2>🤝 Alliance</h2><p class="hint">Bientôt disponible.</p></div>
-        <div id="drawer-courrier" class="drawer"><div class="drawer-handle"></div><h2>✉️ Courrier</h2><p class="hint">Bientôt disponible.</p></div>
-        <div id="drawer-articles" class="drawer"><div class="drawer-handle"></div><h2>🎒 Articles</h2><p class="hint">Bientôt disponible.</p></div>
+        <div id="drawer-alliance" class="drawer">
+            <div class="drawer-handle"></div><h2>🤝 Alliance</h2>
+            <div id="allianceContenu"></div>
+        </div>
+        <div id="drawer-courrier" class="drawer">
+            <div class="drawer-handle"></div><h2>✉️ Courrier</h2>
+            <select id="destinataireCourrier" class="input-premium"></select>
+            <div class="chat-input-row"><input type="text" id="courrierInput" class="input-premium" placeholder="Ton message..." style="margin:0;"><button onclick="envoyerCourrier()" class="btn-gold" style="width:auto;margin:0;padding:10px 16px;"><i class="fas fa-paper-plane"></i></button></div>
+            <div id="courrierListe" class="chat-scroll" style="margin-top:10px;"></div>
+        </div>
+        <div id="drawer-articles" class="drawer"><div class="drawer-handle"></div><h2>🎒 Articles</h2><div id="articlesListe"></div></div>
         <div id="drawer-recruter" class="drawer"><div class="drawer-handle"></div><h2>🎖️ Recruter</h2><p class="hint">Bientôt disponible.</p></div>
         <div id="drawer-artisanat" class="drawer"><div class="drawer-handle"></div><h2>⚒️ Artisanat</h2><p class="hint">Va à la Forge sur la carte pour fabriquer de l'équipement.</p></div>
         <div id="drawer-baraques" class="drawer"><div class="drawer-handle"></div><h2>⚔️ Caserne — Entraîner des troupes</h2><div id="troupesList"></div></div>
@@ -113,6 +124,8 @@
         <div id="drawer-march" class="drawer"><div class="drawer-handle"></div><h2>🐎 Armées en marche</h2><div id="marchList"></div></div>
         <div id="drawer-battle" class="drawer"><div class="drawer-handle"></div><h2>⚔️ Formations</h2><p class="hint">Organise tes troupes avant la bataille.</p></div>
         <div id="drawer-research" class="drawer"><div class="drawer-handle"></div><h2>🧪 Recherche</h2><p class="hint">Bientôt disponible.</p></div>
+        <div id="drawer-journal" class="drawer"><div class="drawer-handle"></div><h2>📜 Journal du Monde</h2><div id="journalMessages" class="chat-scroll"></div></div>
+
         <div id="drawer-chat" class="drawer"><div class="drawer-handle"></div><h2>💬 Chat mondial</h2><div id="chatMessages" class="chat-scroll"></div><div class="chat-input-row"><input type="text" id="chatInput" class="input-premium" placeholder="Ton message..." style="margin:0;"><button onclick="envoyerMessageChat()" class="btn-gold" style="width:auto;margin:0;padding:10px 16px;"><i class="fas fa-paper-plane"></i></button></div></div>
 
         <div id="build-modal-backdrop" onclick="if(event.target===this) fermerModal()"><div id="build-modal"></div></div>
@@ -145,8 +158,9 @@
         <button class="nav-btn" onclick="toggleTiroir('alliance')">
             <div class="nav-icon"><i class="fas fa-flag"></i></div><span>Alliance</span>
         </button>
-        <button class="nav-btn" onclick="toggleTiroir('courrier')">
+        <button class="nav-btn" onclick="toggleTiroir('courrier')" style="position:relative;">
             <div class="nav-icon"><i class="fas fa-envelope"></i></div><span>Courrier</span>
+            <div class="nav-badge-dyn" id="badgeCourrier" style="display:none;">0</div>
         </button>
         <button class="nav-btn" onclick="toggleTiroir('recruter')">
             <div class="nav-icon"><i class="fas fa-helmet-safety"></i></div><span>Recruter</span>
@@ -158,7 +172,12 @@
 </div>
 
 <div id="toast"></div>
+<!-- 🆕 Musique de fond : place un fichier musique.mp3 (libre de droits) à côté de index.html dans le dépôt GitHub -->
+<audio id="bgMusic" loop preload="none">
+    <source src="musique.mp3" type="audio/mpeg">
+</audio>
 
 <script type="module" src="script.js"></script>
 </body>
 </html>
+
