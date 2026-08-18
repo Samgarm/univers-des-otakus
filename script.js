@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
-import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, addDoc, onSnapshot, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, addDoc, onSnapshot, orderBy, serverTimestamp, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
 
 const firebaseConfig = { apiKey: "AIzaSyCHw1y_HTgPvtFrn18QOR5y7mvMo53p01A", authDomain: "univers-des-otakus-90640.firebaseapp.com", projectId: "univers-des-otakus-90640", storageBucket: "univers-des-otakus-90640.firebasestorage.app", messagingSenderId: "55096557900", appId: "1:55096557900:web:280115592b1dc051564fe9" };
 const fbApp = initializeApp(firebaseConfig);
@@ -7,6 +7,9 @@ const db = getFirestore(fbApp);
 // 🆕 Collection dédiée pour ne jamais mélanger avec Otakus/Empire/Légats dans le même projet Firebase
 const COL = "lyonMembres";
 const COL_CHAT = "lyonMessages";
+const COL_JOURNAL = "lyonJournal";
+const COL_ALLIANCES = "lyonAlliances";
+const COL_COURRIER = "lyonCourrier";
 const CODE_COMMUN = "LYON2026";
 
 let monId = "", monProfil = null;
@@ -21,6 +24,7 @@ function profilParDefaut(pseudo, codeRecup) {
     return {
         pseudo, avatar: "👑", codeRecuperation: codeRecup, banni: false, premiereConnexion: true,
         or: 500,
+        allianceId: null, nomVille: "Lyon",
         ressources: { nourriture: 800, bois: 600, pierre: 400, fer: 200 },
         batiments: batimentsParDefaut(),
         troupes: { fantassins:0, archers:0, cavaliers:0, cavaliersBlindes:0, balistes:0, trebuchets:0 },
@@ -90,10 +94,12 @@ async function calculerProductionAutomatique() {
     const nbScieries = ['scierie1'].reduce((s,k)=>s+(p.batiments[k]||0),0);
     const nbCarrieres = ['carriere1','carriere2'].reduce((s,k)=>s+(p.batiments[k]||0),0);
     const nbMines = ['mine1'].reduce((s,k)=>s+(p.batiments[k]||0),0);
-    const gN = Math.round(nbFermes * 8 * heures);
-    const gB = Math.round(nbScieries * 8 * heures);
-    const gP = Math.round(nbCarrieres * 8 * heures);
-    const gF = Math.round(nbMines * 5 * heures);
+    // 🆕 Le boost "Articles" double la production tant qu'il est actif
+    const multiplicateur = (p.boostProductionFin && p.boostProductionFin > Date.now()) ? 2 : 1;
+    const gN = Math.round(nbFermes * 8 * heures * multiplicateur);
+    const gB = Math.round(nbScieries * 8 * heures * multiplicateur);
+    const gP = Math.round(nbCarrieres * 8 * heures * multiplicateur);
+    const gF = Math.round(nbMines * 5 * heures * multiplicateur);
     p.ressources.nourriture += gN; p.ressources.bois += gB; p.ressources.pierre += gP; p.ressources.fer += gF;
     p.dernierCalcul = Date.now();
     await sauvegarder({ ressources: p.ressources, dernierCalcul: p.dernierCalcul });
@@ -157,12 +163,12 @@ const MARQUEURS_MONDE = [
 ];
 
 const DEFS_TROUPES = {
-    fantassins:      { nom: 'Fantassins',       icon: 'fa-shield',              cout: { nourriture: 20, bois: 5,  fer: 0  } },
-    archers:         { nom: 'Archers',          icon: 'fa-crosshairs',          cout: { nourriture: 25, bois: 15, fer: 5  } },
-    cavaliers:       { nom: 'Cavaliers',        icon: 'fa-horse',               cout: { nourriture: 40, bois: 10, fer: 15 } },
-    cavaliersBlindes:{ nom: 'Cavaliers blindés',icon: 'fa-chess-knight',        cout: { nourriture: 60, bois: 20, fer: 40 } },
-    balistes:        { nom: 'Balistes',         icon: 'fa-location-crosshairs', cout: { nourriture: 50, bois: 60, fer: 30 } },
-    trebuchets:      { nom: 'Trébuchets',       icon: 'fa-meteor',              cout: { nourriture: 70, bois: 80, fer: 60 } }
+    fantassins:      { nom: 'Fantassins',       icon: 'fa-shield',              attaque:6,  defense:9,  cout: { nourriture: 20, bois: 5,  fer: 0  } },
+    archers:         { nom: 'Archers',          icon: 'fa-crosshairs',          attaque:10, defense:4,  cout: { nourriture: 25, bois: 15, fer: 5  } },
+    cavaliers:       { nom: 'Cavaliers',        icon: 'fa-horse',               attaque:14, defense:7,  cout: { nourriture: 40, bois: 10, fer: 15 } },
+    cavaliersBlindes:{ nom: 'Cavaliers blindés',icon: 'fa-chess-knight',        attaque:20, defense:16, cout: { nourriture: 60, bois: 20, fer: 40 } },
+    balistes:        { nom: 'Balistes',         icon: 'fa-location-crosshairs', attaque:26, defense:6,  cout: { nourriture: 50, bois: 60, fer: 30 } },
+    trebuchets:      { nom: 'Trébuchets',       icon: 'fa-meteor',              attaque:34, defense:5,  cout: { nourriture: 70, bois: 80, fer: 60 } }
 };
 
 function creerListeTroupes() {
@@ -236,30 +242,137 @@ window.acheterEquipement = async function(type) {
 };
 
 let cibleAttaque = null;
-window.ouvrirAttaque = function(nom) {
-    cibleAttaque = nom;
-    document.getElementById('attaqueTitle').innerText = `⚔️ Attaquer ${nom}`;
+window.ouvrirAttaque = function(cible) {
+    cibleAttaque = cible;
+    document.getElementById('attaqueTitle').innerText = `⚔️ Attaquer ${cible.nom}`;
     const box = document.getElementById('attaqueTroupes');
     let html = '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;">';
     for (const [key, def] of Object.entries(DEFS_TROUPES)) {
         html += `<div style="text-align:center;background:rgba(0,0,0,0.3);border:1px solid #3a2d63;border-radius:10px;padding:8px;"><i class="fas ${def.icon}" style="color:var(--gold);font-size:18px;"></i><div style="font-size:11px;margin-top:4px;">${def.nom}</div><div style="font-size:13px;font-weight:bold;color:#6ee7b7;">${monProfil.troupes[key]||0} dispo</div></div>`;
     }
-    html += '</div><p class="hint">Toutes tes troupes disponibles seront envoyées à l\'attaque.</p>';
+    html += `</div><p class="hint">Force d'attaque totale : ${forceAttaque(monProfil)}</p>`;
     box.innerHTML = html;
     toggleTiroir('attaque');
 };
-window.lancerAttaque = function() {
+window.lancerAttaque = async function() {
     const total = Object.values(monProfil.troupes).reduce((a, b) => a + b, 0);
     if (total === 0) { afficherToast("⛔ Entraîne des troupes à la Caserne avant d'attaquer."); return; }
-    afficherToast(`⚔️ Attaque lancée contre ${cibleAttaque} avec ${total} unités ! (résolution du combat à venir)`);
+    const monAttaque = forceAttaque(monProfil);
+
+    if (cibleAttaque.type === 'pnj') {
+        if (monAttaque >= cibleAttaque.force) {
+            const butinOr = 30 + Math.floor(cibleAttaque.force * 0.4);
+            monProfil.or += butinOr;
+            await sauvegarder({ or: monProfil.or });
+            majHUD();
+            afficherGainFlottant(`🏆 +${butinOr}🪙`);
+            afficherToast(`🏆 Victoire contre ${cibleAttaque.nom} ! +${butinOr}🪙`);
+            ajouterAuJournal(`⚔️ ${monProfil.pseudo} a vaincu ${cibleAttaque.nom} !`);
+        } else {
+            const pertes = reduireTroupes(monProfil.troupes, 0.15);
+            await sauvegarder({ troupes: monProfil.troupes });
+            majHUD();
+            afficherToast(`💀 Défaite contre ${cibleAttaque.nom}... ${pertes} troupes perdues.`);
+            ajouterAuJournal(`💀 ${monProfil.pseudo} a été repoussé par ${cibleAttaque.nom}.`);
+        }
+        fermerTiroir();
+        return;
+    }
+
+    // Combat réel contre un joueur : on relit son profil à jour au moment de l'attaque
+    const snap = await getDoc(doc(db, COL, cibleAttaque.id));
+    if (!snap.exists()) { afficherToast("Ce joueur n'existe plus."); fermerTiroir(); return; }
+    const defenseur = snap.data();
+    const sonDefense = forceDefense(defenseur);
+
+    if (monAttaque * (0.85 + Math.random() * 0.3) >= sonDefense) {
+        const butinOr = Math.min(defenseur.or || 0, Math.round((defenseur.or || 0) * 0.15) + 20);
+        const butinBois = Math.min(defenseur.ressources.bois, Math.round(defenseur.ressources.bois * 0.15));
+        const butinPierre = Math.min(defenseur.ressources.pierre, Math.round(defenseur.ressources.pierre * 0.15));
+        defenseur.or -= butinOr; defenseur.ressources.bois -= butinBois; defenseur.ressources.pierre -= butinPierre;
+        reduireTroupes(defenseur.troupes, 0.1);
+        await updateDoc(doc(db, COL, cibleAttaque.id), { or: defenseur.or, ressources: defenseur.ressources, troupes: defenseur.troupes });
+
+        monProfil.or += butinOr; monProfil.ressources.bois += butinBois; monProfil.ressources.pierre += butinPierre;
+        await sauvegarder({ or: monProfil.or, ressources: monProfil.ressources });
+        majHUD();
+        afficherGainFlottant(`🏆 +${butinOr}🪙`);
+        afficherToast(`🏆 Victoire contre ${cibleAttaque.nom} ! +${butinOr}🪙 +${butinBois}🪵 +${butinPierre}🪨`);
+        ajouterAuJournal(`⚔️ ${monProfil.pseudo} a attaqué ${cibleAttaque.nom} et remporté la bataille !`);
+    } else {
+        const pertes = reduireTroupes(monProfil.troupes, 0.2);
+        await sauvegarder({ troupes: monProfil.troupes });
+        majHUD();
+        afficherToast(`💀 Défaite face aux défenses de ${cibleAttaque.nom}... ${pertes} troupes perdues.`);
+        ajouterAuJournal(`💀 ${monProfil.pseudo} a échoué à prendre ${cibleAttaque.nom}.`);
+    }
     fermerTiroir();
 };
+function reduireTroupes(troupes, ratio) {
+    let perdues = 0;
+    Object.keys(troupes).forEach(k => {
+        const perte = Math.floor((troupes[k] || 0) * ratio);
+        troupes[k] = Math.max(0, (troupes[k] || 0) - perte);
+        perdues += perte;
+    });
+    return perdues;
+}
 
 function afficherToast(msg) {
     const t = document.getElementById('toast');
     t.innerText = msg; t.style.display = 'block';
     clearTimeout(t._timer);
     t._timer = setTimeout(() => t.style.display = 'none', 2400);
+}
+
+// ==================== 🆕 JOURNAL DU MONDE (événements automatiques, partagés) ====================
+async function ajouterAuJournal(texte) {
+    await addDoc(collection(db, COL_JOURNAL), { texte, date: serverTimestamp() });
+}
+let _dernieresEntreesJournal = [];
+let _indexTicker = 0, _intervalTicker = null;
+function demarrerJournal() {
+    onSnapshot(query(collection(db, COL_JOURNAL), orderBy("date", "desc")), (snap) => {
+        const box = document.getElementById('journalMessages');
+        _dernieresEntreesJournal = [];
+        let html = "";
+        let c = 0;
+        snap.forEach(d => {
+            if (c++ >= 40) return;
+            _dernieresEntreesJournal.push(d.data().texte);
+            html += `<div class="chat-msg">📌 ${d.data().texte}</div>`;
+        });
+        if (box) box.innerHTML = html || `<p class="hint">Aucun événement pour l'instant.</p>`;
+    });
+    if (_intervalTicker) clearInterval(_intervalTicker);
+    _intervalTicker = setInterval(() => {
+        if (!_dernieresEntreesJournal.length) return;
+        _indexTicker = (_indexTicker + 1) % _dernieresEntreesJournal.length;
+        const ticker = document.getElementById('hudTicker');
+        if (ticker) ticker.innerText = "📯 " + _dernieresEntreesJournal[_indexTicker];
+    }, 5000);
+}
+
+// ==================== 🆕 COMBAT RÉEL ENTRE JOUEURS ====================
+function forceAttaque(profil) {
+    return Object.entries(profil.troupes || {}).reduce((s, [k, n]) => s + n * (DEFS_TROUPES[k]?.attaque || 0), 0);
+}
+function forceDefense(profil) {
+    const base = Object.entries(profil.troupes || {}).reduce((s, [k, n]) => s + n * (DEFS_TROUPES[k]?.defense || 0), 0);
+    const niveauMirador = profil.batiments?.mirador || 0;
+    return base + niveauMirador * 10;
+}
+// Positionne les autres joueurs sur la carte du monde (position stable, dérivée de leur ID)
+function positionJoueur(id) {
+    let h = 0;
+    for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) % 100000;
+    return { x: 200 + (h % 1800), y: 200 + Math.floor(h / 1800) % 2400 };
+}
+let _autresJoueurs = [];
+async function chargerAutresJoueurs() {
+    const snap = await getDocs(collection(db, COL));
+    _autresJoueurs = [];
+    snap.forEach(d => { if (d.id !== monId) _autresJoueurs.push({ id: d.id, ...d.data() }); });
 }
 
 // ==================== 🆕 CHAT MONDIAL (temps réel, partagé avec tout le groupe) ====================
@@ -339,8 +452,8 @@ function rendreMondeCanvas() {
         el.style.left = m.x + 'px'; el.style.top = m.y + 'px';
         el.onclick = () => {
             if (m.type === 'mine-city') { allerVue('city'); afficherToast('🏛️ Entrée dans ta ville'); return; }
-            if (m.type === 'monster') { ouvrirAttaque('le monstre niv.' + m.badge); return; }
-            if (m.type === 'camp') { ouvrirAttaque('le campement niv.' + m.badge); return; }
+            if (m.type === 'monster') { ouvrirAttaque({ type: 'pnj', nom: 'le monstre niv.' + m.badge, force: m.badge * 60 }); return; }
+            if (m.type === 'camp') { ouvrirAttaque({ type: 'pnj', nom: 'le campement niv.' + m.badge, force: m.badge * 50 }); return; }
             afficherToast((m.nomtype || 'Ressource') + ' niv.' + m.badge);
         };
         if (m.type === 'mine-city') {
@@ -350,6 +463,16 @@ function rendreMondeCanvas() {
             const iconColor = m.type === 'monster' ? '#f87171' : (m.type === 'camp' ? '#fbbf24' : '#6ee7b7');
             el.innerHTML = `<div class="wmarker-badge ${badgeClass}">${m.badge}</div><i class="fas ${m.icon} wmarker-icon" style="color:${iconColor}"></i>${m.nomtype ? `<div class="wmarker-label">${m.nomtype}</div>` : ''}`;
         }
+        canvas.appendChild(el);
+    });
+    // 🆕 Cités des autres joueurs du groupe, cliquables pour un vrai combat
+    _autresJoueurs.forEach(j => {
+        const pos = positionJoueur(j.id);
+        const el = document.createElement('div');
+        el.className = 'wmarker';
+        el.style.left = pos.x + 'px'; el.style.top = pos.y + 'px';
+        el.onclick = () => ouvrirAttaque({ type: 'joueur', id: j.id, nom: j.pseudo });
+        el.innerHTML = `<i class="fas fa-flag wmarker-icon town" style="color:#f87171;"></i><div class="wmarker-label">${j.pseudo}</div>`;
         canvas.appendChild(el);
     });
 }
@@ -422,6 +545,7 @@ window.ameliorer = async function() {
     majHUD(); rendreVilleCanvas(); fermerModal();
     afficherGainFlottant(`🏗️ Niveau ${monProfil.batiments[cibleActuelle]} !`);
     afficherToast(`🏗️ Niveau ${monProfil.batiments[cibleActuelle]} atteint !`);
+    ajouterAuJournal(`🏗️ ${monProfil.pseudo} a amélioré son bâtiment au niveau ${monProfil.batiments[cibleActuelle]} !`);
 };
 
 let tiroirOuvert = null;
@@ -438,6 +562,9 @@ window.toggleTiroir = function(nom) {
     if (nom === 'baraques') creerListeTroupes();
     if (nom === 'rassemblement') creerRassemblement();
     if (nom === 'forgeron') creerListeEquipement();
+    if (nom === 'alliance') afficherAlliance();
+    if (nom === 'articles') afficherArticles();
+    if (nom === 'courrier') rendreCourrier();
     if (nom === 'march') document.getElementById('marchList').innerHTML = `<p class="hint">Aucune armée en marche pour l'instant.</p>`;
 };
 window.fermerTiroir = function() {
@@ -446,20 +573,160 @@ window.fermerTiroir = function() {
     tiroirOuvert = null;
 };
 
-// ==================== ENTRÉE DANS LE JEU ====================
+// ==================== 🆕 ALLIANCE ====================
+window.creerAlliance = async function() {
+    const nom = prompt("Nom de ta nouvelle alliance :");
+    if (!nom) return;
+    const snap = await getDoc(doc(db, COL_ALLIANCES, nom));
+    if (snap.exists()) { afficherToast("⛔ Cette alliance existe déjà."); return; }
+    await setDoc(doc(db, COL_ALLIANCES, nom), { nom, createur: monProfil.pseudo, membres: [monId] });
+    monProfil.allianceId = nom;
+    await sauvegarder({ allianceId: nom });
+    afficherToast(`🤝 Alliance "${nom}" fondée !`);
+    ajouterAuJournal(`🤝 ${monProfil.pseudo} a fondé l'alliance "${nom}" !`);
+    afficherAlliance();
+};
+window.rejoindreAllianceExistante = async function(nom) {
+    await updateDoc(doc(db, COL_ALLIANCES, nom), { membres: arrayUnion(monId) });
+    monProfil.allianceId = nom;
+    await sauvegarder({ allianceId: nom });
+    afficherToast(`🤝 Tu as rejoint "${nom}" !`);
+    afficherAlliance();
+};
+window.quitterAlliance = async function() {
+    if (!monProfil.allianceId) return;
+    await updateDoc(doc(db, COL_ALLIANCES, monProfil.allianceId), { membres: arrayRemove(monId) });
+    monProfil.allianceId = null;
+    await sauvegarder({ allianceId: null });
+    afficherToast("🚪 Alliance quittée.");
+    afficherAlliance();
+};
+async function afficherAlliance() {
+    const box = document.getElementById('allianceContenu');
+    if (!box) return;
+    if (monProfil.allianceId) {
+        const snap = await getDoc(doc(db, COL_ALLIANCES, monProfil.allianceId));
+        if (!snap.exists()) { monProfil.allianceId = null; await sauvegarder({ allianceId: null }); afficherAlliance(); return; }
+        const a = snap.data();
+        const membresIds = a.membres || [];
+        let membresHtml = "";
+        for (const id of membresIds) {
+            const j = id === monId ? monProfil : (_autresJoueurs.find(x => x.id === id) || {});
+            membresHtml += `<div class="item-card"><div class="info"><h4>${j.pseudo || id}${id === monId ? " (toi)" : ""}</h4></div></div>`;
+        }
+        box.innerHTML = `<h4 style="color:var(--gold);margin-bottom:8px;">${a.nom} — ${membresIds.length} membre(s)</h4>${membresHtml}<button class="btn-purple" style="margin-top:10px;" onclick="quitterAlliance()">🚪 Quitter l'alliance</button>`;
+    } else {
+        const snap = await getDocs(collection(db, COL_ALLIANCES));
+        let listeHtml = "";
+        snap.forEach(d => { const a = d.data(); listeHtml += `<div class="item-card"><div class="info"><h4>${a.nom}</h4><span>${(a.membres||[]).length} membre(s)</span></div><button onclick="rejoindreAllianceExistante('${d.id}')" class="btn-sm" style="background:var(--gold);color:#0a061d;">Rejoindre</button></div>`; });
+        box.innerHTML = `<button class="btn-gold" onclick="creerAlliance()">🆕 Fonder une alliance</button><p class="hint" style="margin-top:10px;">Alliances existantes :</p>${listeHtml || '<p class="hint">Aucune alliance pour l\'instant.</p>'}`;
+    }
+}
+
+// ==================== 🆕 COURRIER (messages privés) ====================
+let _courrierRecus = {}, _courrierEnvoyes = {};
+function demarrerCourrier() {
+    const select = document.getElementById('destinataireCourrier');
+    if (select) select.innerHTML = _autresJoueurs.map(j => `<option value="${j.id}">${j.pseudo}</option>`).join('');
+    onSnapshot(query(collection(db, COL_COURRIER), where("destinataireId", "==", monId)), (snap) => {
+        _courrierRecus = {}; snap.forEach(d => _courrierRecus[d.id] = { id: d.id, ...d.data() });
+        rendreCourrier();
+    });
+    onSnapshot(query(collection(db, COL_COURRIER), where("expediteurId", "==", monId)), (snap) => {
+        _courrierEnvoyes = {}; snap.forEach(d => _courrierEnvoyes[d.id] = { id: d.id, ...d.data() });
+        rendreCourrier();
+    });
+}
+function rendreCourrier() {
+    const box = document.getElementById('courrierListe');
+    const tous = [...Object.values(_courrierRecus), ...Object.values(_courrierEnvoyes)];
+    tous.sort((a, b) => (a.date?.toMillis?.() || 0) - (b.date?.toMillis?.() || 0));
+    if (box) box.innerHTML = tous.map(m => `<div class="mail-row"><b>${m.expediteurId === monId ? 'Toi → ' + (m.destinatairePseudo||'?') : m.expediteurPseudo + ' → toi'} :</b> ${m.texte}</div>`).join('') || `<p class="hint">Aucun message.</p>`;
+    const nonLus = Object.values(_courrierRecus).filter(m => !m.lu).length;
+    const badge = document.getElementById('badgeCourrier');
+    if (badge) { badge.style.display = nonLus > 0 ? 'flex' : 'none'; badge.innerText = nonLus; }
+}
+window.envoyerCourrier = async function() {
+    const destId = document.getElementById('destinataireCourrier').value;
+    const input = document.getElementById('courrierInput');
+    if (!destId || !input.value.trim()) return;
+    const destPseudo = _autresJoueurs.find(j => j.id === destId)?.pseudo || "?";
+    await addDoc(collection(db, COL_COURRIER), { expediteurId: monId, expediteurPseudo: monProfil.pseudo, destinataireId: destId, destinatairePseudo: destPseudo, texte: input.value.trim(), date: serverTimestamp(), lu: false });
+    input.value = "";
+};
+
+// ==================== 🆕 ARTICLES (boutique) ====================
+const ARTICLES = [
+    { id: "bouclier7j", nom: "🛡️ Bouclier 7 jours", desc: "Protège ta ville contre les attaques.", prix: 300 },
+    { id: "boostProd", nom: "⚡ Boost production x2 (24h)", desc: "Double ta production automatique.", prix: 250 },
+    { id: "sacRessources", nom: "📦 Sac de ressources", desc: "+200🪵 +200🪨 +100⛓️ immédiatement.", prix: 150 },
+    { id: "renommer", nom: "✏️ Renommer ta ville", desc: "Change le nom affiché de ta capitale.", prix: 100 }
+];
+function afficherArticles() {
+    const box = document.getElementById('articlesListe');
+    if (!box) return;
+    box.innerHTML = ARTICLES.map(a => `<div class="item-card"><div class="info"><h4>${a.nom}</h4><span>${a.desc}</span></div><button onclick="acheterArticle('${a.id}')" class="btn-sm" style="background:var(--gold);color:#0a061d;">${a.prix}🪙</button></div>`).join('');
+}
+window.acheterArticle = async function(id) {
+    const article = ARTICLES.find(a => a.id === id);
+    if (monProfil.or < article.prix) { afficherToast("⛔ Pas assez d'or."); return; }
+    monProfil.or -= article.prix;
+    if (id === "bouclier7j") monProfil.village = { ...(monProfil.village||{}), bouclierFin: Date.now() + 7*86400000 };
+    if (id === "boostProd") monProfil.boostProductionFin = Date.now() + 86400000;
+    if (id === "sacRessources") { monProfil.ressources.bois += 200; monProfil.ressources.pierre += 200; monProfil.ressources.fer += 100; }
+    if (id === "renommer") { const n = prompt("Nouveau nom de ta ville :", monProfil.nomVille || "Lyon"); if (n) monProfil.nomVille = n; else monProfil.or += article.prix; }
+    await sauvegarder({ or: monProfil.or, ressources: monProfil.ressources, boostProductionFin: monProfil.boostProductionFin || null, nomVille: monProfil.nomVille || "Lyon" });
+    majHUD();
+    if (monProfil.nomVille) document.getElementById('hudCityName').innerText = vueActuelle === 'city' ? monProfil.nomVille : 'Le Monde';
+    afficherGainFlottant(`✅ ${article.nom}`);
+    afficherArticles();
+};
+
+// ==================== 🆕 MUSIQUE DE FOND ====================
+window.basculerMusique = function() {
+    const audio = document.getElementById('bgMusic');
+    const icone = document.getElementById('musicIcon');
+    if (audio.paused) { audio.play().catch(() => afficherToast("🎵 Ajoute un fichier musique.mp3 dans ton dépôt pour activer la musique.")); icone.className = 'fas fa-volume-up'; }
+    else { audio.pause(); icone.className = 'fas fa-volume-mute'; }
+};
+
+// ==================== 🆕 PARTICULES FLOTTANTES (ambiance MMO) ====================
+function demarrerParticules() {
+    const zone = document.getElementById('particules-container');
+    if (!zone) return;
+    setInterval(() => {
+        const p = document.createElement('div');
+        p.className = 'particule';
+        p.style.left = Math.random() * 100 + '%';
+        p.style.bottom = '0px';
+        p.style.animationDuration = (4 + Math.random() * 4) + 's';
+        zone.appendChild(p);
+        setTimeout(() => p.remove(), 8000);
+    }, 700);
+}
+
+
 async function entrerDansLeJeu() {
     if (!monProfil.ressources) monProfil.ressources = { nourriture:800, bois:600, pierre:400, fer:200 };
     if (!monProfil.batiments) monProfil.batiments = batimentsParDefaut();
     if (!monProfil.troupes) monProfil.troupes = { fantassins:0, archers:0, cavaliers:0, cavaliersBlindes:0, balistes:0, trebuchets:0 };
     if (!monProfil.equipement) monProfil.equipement = { epee:0, bouclier:0, armure:0, arc:0, heaume:0 };
     if (monProfil.dernierCalcul === undefined) monProfil.dernierCalcul = Date.now();
+    if (!monProfil.nomVille) monProfil.nomVille = "Lyon";
+    if (monProfil.allianceId === undefined) monProfil.allianceId = null;
 
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('game-ui').style.display = 'flex';
+    document.getElementById('hudCityName').innerText = monProfil.nomVille;
     await calculerProductionAutomatique();
     majHUD();
     rendreVilleCanvas();
     demarrerChat();
+    demarrerJournal();
+    await chargerAutresJoueurs();
+    demarrerCourrier();
+    demarrerParticules();
+    document.getElementById('bgMusic').play().catch(() => {}); // silencieux si l'autoplay est bloqué ou le fichier absent
     setTimeout(recentrerCarte, 150);
     document.getElementById('loading-overlay').classList.remove('show');
     afficherToast(`👑 Bienvenue, ${monProfil.pseudo} !`);
@@ -471,4 +738,3 @@ if (savedId) {
     document.getElementById('codeInput').value = savedId;
     seConnecter();
 }
-
