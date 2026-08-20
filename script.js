@@ -10,6 +10,7 @@ const COL_CHAT = "lyonMessages";
 const COL_JOURNAL = "lyonJournal";
 const COL_ALLIANCES = "lyonAlliances";
 const COL_COURRIER = "lyonCourrier";
+const COL_TERRITOIRES = "lyonTerritoires";
 const CODE_COMMUN = "LYON2026";
 
 let monId = "", monProfil = null;
@@ -24,7 +25,8 @@ function profilParDefaut(pseudo, codeRecup) {
     return {
         pseudo, avatar: "👑", codeRecuperation: codeRecup, banni: false, premiereConnexion: true,
         or: 500,
-        allianceId: null, nomVille: "Lyon",
+        allianceId: null, nomVille: "Lyon", prestige: 0,
+        strategies: { mecontentement: 0, brusque: 0, contreOffensive: 0, faillite: 0 }, contreOffensifFin: null, malusProductionFin: null,
         ressources: { nourriture: 800, bois: 600, pierre: 400, fer: 200 },
         batiments: batimentsParDefaut(),
         troupes: { fantassins:0, archers:0, cavaliers:0, cavaliersBlindes:0, balistes:0, trebuchets:0 },
@@ -94,8 +96,10 @@ async function calculerProductionAutomatique() {
     const nbScieries = ['scierie1'].reduce((s,k)=>s+(p.batiments[k]||0),0);
     const nbCarrieres = ['carriere1','carriere2'].reduce((s,k)=>s+(p.batiments[k]||0),0);
     const nbMines = ['mine1'].reduce((s,k)=>s+(p.batiments[k]||0),0);
-    // 🆕 Le boost "Articles" double la production tant qu'il est actif
-    const multiplicateur = (p.boostProductionFin && p.boostProductionFin > Date.now()) ? 2 : 1;
+    // 🆕 Le boost "Articles" double la production ; la Graine de Mécontentement la réduit de moitié
+    const boostActif = (p.boostProductionFin && p.boostProductionFin > Date.now());
+    const malusActif = (p.malusProductionFin && p.malusProductionFin > Date.now());
+    const multiplicateur = (boostActif ? 2 : 1) * (malusActif ? 0.5 : 1);
     const gN = Math.round(nbFermes * 8 * heures * multiplicateur);
     const gB = Math.round(nbScieries * 8 * heures * multiplicateur);
     const gP = Math.round(nbCarrieres * 8 * heures * multiplicateur);
@@ -111,6 +115,8 @@ function majHUD() {
     document.getElementById('avatarBox').innerText = monProfil.avatar || "👑";
     document.getElementById('pnameAffiche').innerText = monProfil.pseudo;
     document.getElementById('puissanceAffiche').innerText = calculerPuissance();
+    const prestigeEl = document.getElementById('prestigeAffiche');
+    if (prestigeEl) prestigeEl.innerText = monProfil.prestige || 0;
     document.getElementById('hudNourriture').innerText = monProfil.ressources.nourriture;
     document.getElementById('hudBois').innerText = monProfil.ressources.bois;
     document.getElementById('hudPierre').innerText = monProfil.ressources.pierre;
@@ -153,13 +159,16 @@ const MARQUEURS_MONDE = [
     { type: 'monster', badge: 3,  icon: 'fa-horse',    x: 700,  y: 1140 },
     { type: 'monster', badge: 5,  icon: 'fa-horse',    x: 1260, y: 1180 },
     { type: 'monster', badge: 18, icon: 'fa-spider',   x: 240,  y: 1520 },
-    { type: 'res', nomtype: 'Forêt', badge: 9, icon: 'fa-seedling', x: 420, y: 480 },
-    { type: 'res', nomtype: 'Bois', badge: 8, icon: 'fa-tree', x: 720, y: 500 },
-    { type: 'res', nomtype: 'Bois', badge: 6, icon: 'fa-tree', x: 640, y: 420 },
-    { type: 'res', nomtype: 'Carrière', badge: 7, icon: 'fa-mountain', x: 180, y: 900 },
-    { type: 'res', nomtype: 'Mine', badge: 10, icon: 'fa-gem', x: 480, y: 1080 },
-    { type: 'res', nomtype: 'Champ', badge: 8, icon: 'fa-wheat-awn', x: 780, y: 1300 },
-    { type: 'res', nomtype: 'Eau', badge: 8, icon: 'fa-water', x: 340, y: 1200 }
+    // 🆕 Terrains conquérables (id stable pour Firestore) : forêts, montagnes, marécages, mines, champs
+    { type: 'res', id: 'terr0', nomtype: 'Forêt', ressourceType: 'bois', badge: 9, icon: 'fa-seedling', x: 420, y: 480 },
+    { type: 'res', id: 'terr1', nomtype: 'Forêt', ressourceType: 'bois', badge: 8, icon: 'fa-tree', x: 720, y: 500 },
+    { type: 'res', id: 'terr2', nomtype: 'Forêt', ressourceType: 'bois', badge: 6, icon: 'fa-tree', x: 640, y: 420 },
+    { type: 'res', id: 'terr3', nomtype: 'Montagne', ressourceType: 'pierre', badge: 7, icon: 'fa-mountain', x: 180, y: 900 },
+    { type: 'res', id: 'terr4', nomtype: 'Montagne', ressourceType: 'pierre', badge: 11, icon: 'fa-mountain', x: 1400, y: 1500 },
+    { type: 'res', id: 'terr5', nomtype: 'Mine', ressourceType: 'fer', badge: 10, icon: 'fa-gem', x: 480, y: 1080 },
+    { type: 'res', id: 'terr6', nomtype: 'Champ', ressourceType: 'nourriture', badge: 8, icon: 'fa-wheat-awn', x: 780, y: 1300 },
+    { type: 'res', id: 'terr7', nomtype: 'Marécage', ressourceType: 'nourriture', badge: 12, icon: 'fa-water', x: 340, y: 1200 },
+    { type: 'res', id: 'terr8', nomtype: 'Marécage', ressourceType: 'fer', badge: 14, icon: 'fa-water', x: 1600, y: 900 }
 ];
 
 const DEFS_TROUPES = {
@@ -261,13 +270,17 @@ window.lancerAttaque = async function() {
 
     if (cibleAttaque.type === 'pnj') {
         if (monAttaque >= cibleAttaque.force) {
-            const butinOr = 30 + Math.floor(cibleAttaque.force * 0.4);
+            const butinOr = 20 + Math.floor(cibleAttaque.force * 0.2);
+            const butinBois = Math.floor(cibleAttaque.force * 0.3);
+            const butinPierre = Math.floor(cibleAttaque.force * 0.25);
+            const butinFer = Math.floor(cibleAttaque.force * 0.15);
             monProfil.or += butinOr;
-            await sauvegarder({ or: monProfil.or });
+            monProfil.ressources.bois += butinBois; monProfil.ressources.pierre += butinPierre; monProfil.ressources.fer += butinFer;
+            await sauvegarder({ or: monProfil.or, ressources: monProfil.ressources });
             majHUD();
-            afficherGainFlottant(`🏆 +${butinOr}🪙`);
-            afficherToast(`🏆 Victoire contre ${cibleAttaque.nom} ! +${butinOr}🪙`);
-            ajouterAuJournal(`⚔️ ${monProfil.pseudo} a vaincu ${cibleAttaque.nom} !`);
+            afficherGainFlottant(`🏆 +${butinBois}🪵 +${butinPierre}🪨`);
+            afficherToast(`🏆 Victoire contre ${cibleAttaque.nom} ! +${butinOr}🪙 +${butinBois}🪵 +${butinPierre}🪨 +${butinFer}⛓️`);
+            ajouterAuJournal(`⚔️ ${monProfil.pseudo} a vaincu ${cibleAttaque.nom} et récupéré des matériaux !`);
         } else {
             const pertes = reduireTroupes(monProfil.troupes, 0.15);
             await sauvegarder({ troupes: monProfil.troupes });
@@ -283,27 +296,55 @@ window.lancerAttaque = async function() {
     const snap = await getDoc(doc(db, COL, cibleAttaque.id));
     if (!snap.exists()) { afficherToast("Ce joueur n'existe plus."); fermerTiroir(); return; }
     const defenseur = snap.data();
+    if (defenseur.village?.bouclierFin > Date.now()) { afficherToast("🛡️ Cette ville est protégée par un bouclier, impossible de l'attaquer."); fermerTiroir(); return; }
+
+    let monAttaqueFinale = monAttaque;
+    let noteStrategie = "";
+    // 🆕 Attaque Brusque : consommée automatiquement si disponible, +20% de force
+    if ((monProfil.strategies?.brusque || 0) > 0) {
+        monProfil.strategies.brusque -= 1;
+        monAttaqueFinale = Math.round(monAttaqueFinale * 1.2);
+        noteStrategie += " ⚡ Attaque Brusque utilisée (+20%) !";
+        await sauvegarder({ strategies: monProfil.strategies });
+    }
+    // 🆕 Contre-Offensive du défenseur : réduit la force de l'attaquant de 20% si active
+    if (defenseur.contreOffensifFin > Date.now()) {
+        monAttaqueFinale = Math.round(monAttaqueFinale * 0.8);
+        noteStrategie += " 🛡️ Le défenseur avait une Contre-Offensive active (-20% à ton attaque) !";
+    }
     const sonDefense = forceDefense(defenseur);
 
-    if (monAttaque * (0.85 + Math.random() * 0.3) >= sonDefense) {
+    if (monAttaqueFinale * (0.85 + Math.random() * 0.3) >= sonDefense) {
+        // 🆕 Faillite Temporelle du défenseur : annule entièrement les pertes, comme si l'attaque n'avait jamais eu lieu
+        if ((defenseur.strategies?.faillite || 0) > 0) {
+            defenseur.strategies.faillite -= 1;
+            await updateDoc(doc(db, COL, cibleAttaque.id), { strategies: defenseur.strategies });
+            afficherToast(`⏳ ${cibleAttaque.nom} a activé Faillite Temporelle ! Ton attaque n'a eu aucun effet.`);
+            ajouterAuJournal(`⏳ ${cibleAttaque.nom} a annulé l'attaque de ${monProfil.pseudo} grâce à une Faillite Temporelle !`);
+            fermerTiroir();
+            return;
+        }
         const butinOr = Math.min(defenseur.or || 0, Math.round((defenseur.or || 0) * 0.15) + 20);
         const butinBois = Math.min(defenseur.ressources.bois, Math.round(defenseur.ressources.bois * 0.15));
         const butinPierre = Math.min(defenseur.ressources.pierre, Math.round(defenseur.ressources.pierre * 0.15));
         defenseur.or -= butinOr; defenseur.ressources.bois -= butinBois; defenseur.ressources.pierre -= butinPierre;
+        defenseur.prestige = Math.max(0, (defenseur.prestige || 0) - 8);
         reduireTroupes(defenseur.troupes, 0.1);
-        await updateDoc(doc(db, COL, cibleAttaque.id), { or: defenseur.or, ressources: defenseur.ressources, troupes: defenseur.troupes });
+        await updateDoc(doc(db, COL, cibleAttaque.id), { or: defenseur.or, ressources: defenseur.ressources, troupes: defenseur.troupes, prestige: defenseur.prestige });
 
         monProfil.or += butinOr; monProfil.ressources.bois += butinBois; monProfil.ressources.pierre += butinPierre;
-        await sauvegarder({ or: monProfil.or, ressources: monProfil.ressources });
+        monProfil.prestige = (monProfil.prestige || 0) + 15;
+        await sauvegarder({ or: monProfil.or, ressources: monProfil.ressources, prestige: monProfil.prestige });
         majHUD();
         afficherGainFlottant(`🏆 +${butinOr}🪙`);
-        afficherToast(`🏆 Victoire contre ${cibleAttaque.nom} ! +${butinOr}🪙 +${butinBois}🪵 +${butinPierre}🪨`);
+        afficherToast(`🏆 Victoire contre ${cibleAttaque.nom} ! +${butinOr}🪙 +${butinBois}🪵 +${butinPierre}🪨${noteStrategie}`);
         ajouterAuJournal(`⚔️ ${monProfil.pseudo} a attaqué ${cibleAttaque.nom} et remporté la bataille !`);
     } else {
+        monProfil.prestige = Math.max(0, (monProfil.prestige || 0) - 5);
         const pertes = reduireTroupes(monProfil.troupes, 0.2);
-        await sauvegarder({ troupes: monProfil.troupes });
+        await sauvegarder({ troupes: monProfil.troupes, prestige: monProfil.prestige });
         majHUD();
-        afficherToast(`💀 Défaite face aux défenses de ${cibleAttaque.nom}... ${pertes} troupes perdues.`);
+        afficherToast(`💀 Défaite face aux défenses de ${cibleAttaque.nom}... ${pertes} troupes perdues.${noteStrategie}`);
         ajouterAuJournal(`💀 ${monProfil.pseudo} a échoué à prendre ${cibleAttaque.nom}.`);
     }
     fermerTiroir();
@@ -353,6 +394,77 @@ function demarrerJournal() {
     }, 5000);
 }
 
+// ==================== 🆕 PROFIL D'UNE VILLE ADVERSE (puissance, prestige, espionnage, attaque) ====================
+window.ouvrirProfilVille = async function(id) {
+    const snap = await getDoc(doc(db, COL, id));
+    if (!snap.exists()) { afficherToast("Cette ville n'existe plus."); return; }
+    const cible = snap.data();
+    const puissance = calculerPuissanceDe(cible);
+    const modal = document.getElementById('profil-ville-modal');
+    modal.innerHTML = `
+        <h3 style="color:var(--gold);font-size:20px;">🏰 ${cible.nomVille || cible.pseudo}</h3>
+        <p style="color:#9ca3af;font-size:12px;margin-bottom:14px;">Seigneur : ${cible.pseudo}</p>
+        <div style="display:flex;justify-content:center;gap:18px;margin-bottom:16px;">
+            <div><div style="color:var(--gold);font-weight:bold;font-size:16px;">${puissance}</div><div style="font-size:10px;color:#9ca3af;">⚡ Puissance</div></div>
+            <div><div style="color:var(--gold);font-weight:bold;font-size:16px;">${cible.prestige || 0}</div><div style="font-size:10px;color:#9ca3af;">🏆 Prestige</div></div>
+        </div>
+        ${cible.village?.bouclierFin > Date.now() ? '<p style="color:#6ee7b7;font-size:12px;margin-bottom:10px;">🛡️ Cette ville est protégée par un bouclier.</p>' : ''}
+        <button class="btn-secondary" style="width:100%;margin-bottom:8px;" onclick="espionnerJoueur('${id}')">🕵️ Espionner</button>
+        <button class="btn-secondary" style="width:100%;margin-bottom:8px;" onclick="ouvrirListeStrategies('${id}','${cible.pseudo}')">🎴 Utiliser une stratégie</button>
+        <button class="btn-gold" onclick="ouvrirAttaque({type:'joueur', id:'${id}', nom:'${cible.pseudo}'}); fermerProfilVille();">⚔️ Attaquer</button>
+        <button class="close-btn" onclick="fermerProfilVille()" style="background:transparent;color:#9ca3af;margin-top:8px;padding:6px;">Fermer</button>
+    `;
+    document.getElementById('profil-ville-backdrop').style.display = 'flex';
+};
+window.ouvrirListeStrategies = function(idCible, pseudoCible) {
+    const s = monProfil.strategies || {};
+    const modal = document.getElementById('profil-ville-modal');
+    let html = `<h3 style="color:var(--gold);font-size:18px;margin-bottom:12px;">🎴 Tes stratégies</h3>`;
+    const actives = Object.entries(NOMS_STRATEGIES).filter(([k]) => (s[k] || 0) > 0);
+    if (actives.length === 0) {
+        html += `<p class="hint">Tu n'as aucune stratégie en stock. Achète-en dans Articles.</p>`;
+    } else {
+        actives.forEach(([k, info]) => {
+            let bouton = `<span style="font-size:10px;color:#9ca3af;">Automatique</span>`;
+            if (k === 'mecontentement') bouton = `<button onclick="utiliserMecontentement('${idCible}','${pseudoCible}')" class="btn-sm" style="background:var(--gold);color:#0a061d;">Utiliser</button>`;
+            if (k === 'contreOffensive') bouton = `<button onclick="activerContreOffensive(); fermerProfilVille();" class="btn-sm" style="background:var(--gold);color:#0a061d;">Activer</button>`;
+            html += `<div class="strategie-row"><div class="info"><h4>${info.nom} <span style="color:#6ee7b7;">(${s[k]})</span></h4><span>${info.desc}</span></div>${bouton}</div>`;
+        });
+    }
+    html += `<button class="close-btn" onclick="ouvrirProfilVille('${idCible}')" style="background:transparent;color:#9ca3af;margin-top:10px;padding:6px;">← Retour</button>`;
+    modal.innerHTML = html;
+};
+window.fermerProfilVille = function() { document.getElementById('profil-ville-backdrop').style.display = 'none'; };
+
+window.espionnerJoueur = async function(id) {
+    const snap = await getDoc(doc(db, COL, id));
+    if (!snap.exists()) return;
+    const cible = snap.data();
+    // 🆕 Le mirador de la ville cible compte comme défense anti-espionnage : plus il est haut, plus l'espionnage a de chances d'échouer
+    const niveauMirador = cible.batiments?.mirador || 0;
+    const chanceReussite = Math.max(20, 80 - niveauMirador * 6);
+    if (Math.random() * 100 <= chanceReussite) {
+        const forceTotale = forceAttaque(cible), defenseTotale = forceDefense(cible);
+        alert(`🕵️ Rapport d'espionnage sur ${cible.pseudo} :\n\n⚔️ Force d'attaque : ${forceTotale}\n🛡️ Force de défense : ${defenseTotale}\n💰 Or : ${cible.or}\n🪵 Bois : ${cible.ressources.bois} · 🪨 Pierre : ${cible.ressources.pierre} · ⛓️ Fer : ${cible.ressources.fer}`);
+        ajouterAuJournal(`🕵️ ${monProfil.pseudo} a espionné ${cible.pseudo} avec succès.`);
+    } else {
+        afficherToast("🕵️ Ton espion a été repéré ! L'espionnage a échoué.");
+        ajouterAuJournal(`🕵️ L'espion de ${monProfil.pseudo} a été démasqué par le mirador de ${cible.pseudo} !`);
+    }
+    fermerProfilVille();
+};
+
+// ==================== 🆕 STRATÉGIES (parchemins à usage unique) ====================
+window.utiliserMecontentement = async function(idCible, pseudoCible) {
+    if ((monProfil.strategies?.mecontentement || 0) < 1) return;
+    monProfil.strategies.mecontentement -= 1;
+    await sauvegarder({ strategies: monProfil.strategies });
+    await updateDoc(doc(db, COL, idCible), { malusProductionFin: Date.now() + 6 * 3600000 });
+    afficherToast(`🌱 Graine de Mécontentement semée chez ${pseudoCible} ! Production réduite 6h.`);
+    ajouterAuJournal(`🌱 ${monProfil.pseudo} a semé le mécontentement chez ${pseudoCible} !`);
+    fermerProfilVille();
+};
+
 // ==================== 🆕 COMBAT RÉEL ENTRE JOUEURS ====================
 function forceAttaque(profil) {
     return Object.entries(profil.troupes || {}).reduce((s, [k, n]) => s + n * (DEFS_TROUPES[k]?.attaque || 0), 0);
@@ -396,12 +508,13 @@ window.envoyerMessageChat = async function() {
 };
 
 // ==================== 🆕 PUISSANCE (score global façon "vrai jeu mobile") ====================
-function calculerPuissance() {
-    const niveauBatiments = Object.values(monProfil.batiments || {}).reduce((s, n) => s + n, 0);
-    const nbTroupes = Object.values(monProfil.troupes || {}).reduce((s, n) => s + n, 0);
-    const nbEquipement = Object.values(monProfil.equipement || {}).reduce((s, n) => s + n, 0);
-    return niveauBatiments * 25 + nbTroupes * 8 + nbEquipement * 40 + Math.floor((monProfil.or || 0) / 10);
+function calculerPuissanceDe(profil) {
+    const niveauBatiments = Object.values(profil.batiments || {}).reduce((s, n) => s + n, 0);
+    const nbTroupes = Object.values(profil.troupes || {}).reduce((s, n) => s + n, 0);
+    const nbEquipement = Object.values(profil.equipement || {}).reduce((s, n) => s + n, 0);
+    return niveauBatiments * 25 + nbTroupes * 8 + nbEquipement * 40 + Math.floor((profil.or || 0) / 10);
 }
+function calculerPuissance() { return calculerPuissanceDe(monProfil); }
 
 // ==================== 🆕 GAINS FLOTTANTS (retour visuel façon jeu mobile) ====================
 function afficherGainFlottant(texte) {
@@ -443,10 +556,95 @@ function rendreVilleCanvas() {
     });
 }
 
+const ICONES_TERRITOIRE = { 'Forêt': { emoji: '🌲', classe: 'foret' }, 'Montagne': { emoji: '⛰️', classe: 'montagne' }, 'Mine': { emoji: '💎', classe: 'montagne' }, 'Champ': { emoji: '🌾', classe: 'marecage' }, 'Marécage': { emoji: '🐊', classe: 'marecage' } };
+let _territoiresPossedes = {};
+async function chargerTerritoires() {
+    const snap = await getDocs(collection(db, COL_TERRITOIRES));
+    _territoiresPossedes = {};
+    snap.forEach(d => { _territoiresPossedes[d.id] = d.data(); });
+}
+async function calculerProductionTerritoires() {
+    const mesTerritoires = MARQUEURS_MONDE.filter(m => m.type === 'res' && _territoiresPossedes[m.id]?.proprietaireId === monId);
+    if (mesTerritoires.length === 0) return;
+    let gains = { bois: 0, pierre: 0, fer: 0, nourriture: 0 };
+    for (const t of mesTerritoires) {
+        const info = _territoiresPossedes[t.id];
+        const heures = Math.min(48, (Date.now() - (info.dernierCalcul || Date.now())) / 3600000);
+        const gain = Math.round((3 + t.badge * 0.4) * heures);
+        gains[t.ressourceType] = (gains[t.ressourceType] || 0) + gain;
+        info.dernierCalcul = Date.now();
+        await setDoc(doc(db, COL_TERRITOIRES, t.id), info);
+    }
+    monProfil.ressources.bois += gains.bois; monProfil.ressources.pierre += gains.pierre; monProfil.ressources.fer += gains.fer; monProfil.ressources.nourriture += gains.nourriture;
+    await sauvegarder({ ressources: monProfil.ressources });
+    const total = gains.bois + gains.pierre + gains.fer + gains.nourriture;
+    if (total > 0) afficherToast(`🗺️ Tes territoires ont produit : +${gains.bois}🪵 +${gains.pierre}🪨 +${gains.fer}⛓️ +${gains.nourriture}🌾`);
+}
+window.ouvrirProfilTerritoire = function(id) {
+    const t = MARQUEURS_MONDE.find(m => m.id === id);
+    const info = _territoiresPossedes[id];
+    const modal = document.getElementById('profil-territoire-modal');
+    const deco = ICONES_TERRITOIRE[t.nomtype] || { emoji: '🗺️' };
+    let html = `<h3 style="color:var(--gold);font-size:20px;">${deco.emoji} ${t.nomtype} (niv.${t.badge})</h3>`;
+    if (!info || !info.proprietaireId) {
+        html += `<p style="color:#9ca3af;font-size:12px;margin-bottom:14px;">Gardé par un gardien sauvage (force ${t.badge * 70}). Vaincs-le pour prendre le contrôle et récolter ses ressources en continu.</p>
+        <button class="btn-gold" onclick="attaquerTerritoire('${id}')">⚔️ Attaquer le Gardien</button>`;
+    } else if (info.proprietaireId === monId) {
+        html += `<p style="color:#6ee7b7;font-size:12px;margin-bottom:14px;">🏳️ Ce territoire t'appartient et te rapporte des ressources automatiquement.</p>`;
+    } else {
+        html += `<p style="color:#9ca3af;font-size:12px;margin-bottom:14px;">Contrôlé par <b style="color:#f87171;">${info.proprietairePseudo}</b>. Tu peux l'attaquer pour le lui prendre.</p>
+        <button class="btn-gold" onclick="attaquerTerritoire('${id}')">⚔️ Conquérir ce territoire</button>`;
+    }
+    html += `<button class="close-btn" onclick="fermerProfilTerritoire()" style="background:transparent;color:#9ca3af;margin-top:8px;padding:6px;">Fermer</button>`;
+    modal.innerHTML = html;
+    document.getElementById('profil-territoire-backdrop').style.display = 'flex';
+};
+window.fermerProfilTerritoire = function() { document.getElementById('profil-territoire-backdrop').style.display = 'none'; };
+window.attaquerTerritoire = async function(id) {
+    const t = MARQUEURS_MONDE.find(m => m.id === id);
+    const info = _territoiresPossedes[id];
+    const monAttaque = forceAttaque(monProfil);
+    let seuil;
+    if (!info || !info.proprietaireId) { seuil = t.badge * 70; }
+    else { const propSnap = await getDoc(doc(db, COL, info.proprietaireId)); seuil = forceDefense(propSnap.data()); }
+
+    if (monAttaque * (0.85 + Math.random() * 0.3) >= seuil) {
+        const nouvInfo = { proprietaireId: monId, proprietairePseudo: monProfil.pseudo, dernierCalcul: Date.now() };
+        await setDoc(doc(db, COL_TERRITOIRES, id), nouvInfo);
+        _territoiresPossedes[id] = nouvInfo;
+        const gain = 20 + t.badge * 5;
+        monProfil.ressources[t.ressourceType] += gain;
+        await sauvegarder({ ressources: monProfil.ressources });
+        majHUD();
+        afficherGainFlottant(`🏁 +${gain} ${t.ressourceType}`);
+        afficherToast(`🏁 ${t.nomtype} conquis ! +${gain} ${t.ressourceType} immédiatement.`);
+        ajouterAuJournal(`🏁 ${monProfil.pseudo} a pris le contrôle de ${t.nomtype} (niv.${t.badge}) !`);
+        rendreMondeCanvas();
+    } else {
+        reduireTroupes(monProfil.troupes, 0.1);
+        await sauvegarder({ troupes: monProfil.troupes });
+        afficherToast(`💀 Le siège de ${t.nomtype} a échoué...`);
+        ajouterAuJournal(`💀 ${monProfil.pseudo} a échoué à conquérir ${t.nomtype}.`);
+    }
+    fermerProfilTerritoire();
+};
+
 function rendreMondeCanvas() {
     canvas.className = 'terrain-world';
     canvas.innerHTML = '';
     MARQUEURS_MONDE.forEach(m => {
+        if (m.type === 'res') {
+            const info = _territoiresPossedes[m.id];
+            const deco = ICONES_TERRITOIRE[m.nomtype] || { emoji: '🗺️', classe: 'foret' };
+            const el = document.createElement('div');
+            el.className = 'territoire-marker';
+            el.style.left = m.x + 'px'; el.style.top = m.y + 'px';
+            const statutClasse = info?.proprietaireId === monId ? 'possede-moi' : (info?.proprietaireId ? 'possede-autre' : '');
+            el.onclick = () => ouvrirProfilTerritoire(m.id);
+            el.innerHTML = `<div class="territoire-icone ${deco.classe} ${statutClasse}">${deco.emoji}</div><div class="territoire-label">${m.nomtype} ${info?.proprietaireId ? (info.proprietaireId === monId ? '(toi)' : '(' + info.proprietairePseudo + ')') : ''}</div>`;
+            canvas.appendChild(el);
+            return;
+        }
         const el = document.createElement('div');
         el.className = 'wmarker';
         el.style.left = m.x + 'px'; el.style.top = m.y + 'px';
@@ -454,25 +652,37 @@ function rendreMondeCanvas() {
             if (m.type === 'mine-city') { allerVue('city'); afficherToast('🏛️ Entrée dans ta ville'); return; }
             if (m.type === 'monster') { ouvrirAttaque({ type: 'pnj', nom: 'le monstre niv.' + m.badge, force: m.badge * 60 }); return; }
             if (m.type === 'camp') { ouvrirAttaque({ type: 'pnj', nom: 'le campement niv.' + m.badge, force: m.badge * 50 }); return; }
-            afficherToast((m.nomtype || 'Ressource') + ' niv.' + m.badge);
         };
         if (m.type === 'mine-city') {
             el.innerHTML = `<i class="fas ${m.icon} wmarker-icon mine-city"></i><div class="wmarker-label">${m.nom}</div>`;
         } else {
-            const badgeClass = (m.type === 'monster' || m.type === 'camp') ? 'monster' : 'res';
-            const iconColor = m.type === 'monster' ? '#f87171' : (m.type === 'camp' ? '#fbbf24' : '#6ee7b7');
-            el.innerHTML = `<div class="wmarker-badge ${badgeClass}">${m.badge}</div><i class="fas ${m.icon} wmarker-icon" style="color:${iconColor}"></i>${m.nomtype ? `<div class="wmarker-label">${m.nomtype}</div>` : ''}`;
+            const iconColor = '#f87171';
+            el.innerHTML = `<div class="wmarker-badge monster">${m.badge}</div><i class="fas ${m.icon} wmarker-icon" style="color:${iconColor}"></i>`;
         }
         canvas.appendChild(el);
     });
-    // 🆕 Cités des autres joueurs du groupe, cliquables pour un vrai combat
+    // 🆕 Royaumes des autres joueurs en pseudo-3D isométrique (mur/toit/tourelles + ombre portée + profondeur selon position)
     _autresJoueurs.forEach(j => {
         const pos = positionJoueur(j.id);
+        const puissance = calculerPuissanceDe(j);
+        const tier = puissance >= 1500 ? 'tier-or' : puissance >= 500 ? 'tier-argent' : '';
+        const echelle = (0.8 + (pos.y / 2800) * 0.45).toFixed(2); // plus bas sur la carte = plus proche = plus grand
         const el = document.createElement('div');
-        el.className = 'wmarker';
+        el.className = `royaume-marker ${tier}`;
         el.style.left = pos.x + 'px'; el.style.top = pos.y + 'px';
-        el.onclick = () => ouvrirAttaque({ type: 'joueur', id: j.id, nom: j.pseudo });
-        el.innerHTML = `<i class="fas fa-flag wmarker-icon town" style="color:#f87171;"></i><div class="wmarker-label">${j.pseudo}</div>`;
+        el.style.transformOrigin = 'bottom center';
+        el.style.transform = `scale(${echelle})`;
+        el.onclick = () => ouvrirProfilVille(j.id);
+        el.innerHTML = `
+            <div class="royaume-3d">
+                <div class="royaume-toit"></div>
+                <div class="royaume-tourelle gauche"></div>
+                <div class="royaume-tourelle droite"></div>
+                <div class="royaume-mur"></div>
+                <div class="royaume-ombre"></div>
+            </div>
+            <div class="royaume-label">${j.pseudo}</div>
+            <div class="royaume-puissance">⚡${puissance}</div>`;
         canvas.appendChild(el);
     });
 }
@@ -660,13 +870,47 @@ const ARTICLES = [
     { id: "bouclier7j", nom: "🛡️ Bouclier 7 jours", desc: "Protège ta ville contre les attaques.", prix: 300 },
     { id: "boostProd", nom: "⚡ Boost production x2 (24h)", desc: "Double ta production automatique.", prix: 250 },
     { id: "sacRessources", nom: "📦 Sac de ressources", desc: "+200🪵 +200🪨 +100⛓️ immédiatement.", prix: 150 },
-    { id: "renommer", nom: "✏️ Renommer ta ville", desc: "Change le nom affiché de ta capitale.", prix: 100 }
+    { id: "renommer", nom: "✏️ Renommer ta ville", desc: "Change le nom affiché de ta capitale.", prix: 100 },
+    { id: "attaquebrusque", nom: "⚡ Attaque Brusque", desc: "+20% de force à ta prochaine attaque contre un joueur (auto).", prix: 150 },
+    { id: "contreoffensive", nom: "🛡️ Contre-Offensive", desc: "En stock — active-la depuis tes stratégies : -20% à tout attaquant pendant 12h.", prix: 180 },
+    { id: "faillitetemporelle", nom: "⏳ Faillite Temporelle", desc: "En stock — annule automatiquement les pertes de ta prochaine défaite subie.", prix: 220 }
 ];
 function afficherArticles() {
     const box = document.getElementById('articlesListe');
     if (!box) return;
     box.innerHTML = ARTICLES.map(a => `<div class="item-card"><div class="info"><h4>${a.nom}</h4><span>${a.desc}</span></div><button onclick="acheterArticle('${a.id}')" class="btn-sm" style="background:var(--gold);color:#0a061d;">${a.prix}🪙</button></div>`).join('');
+    afficherMesStrategies();
 }
+const NOMS_STRATEGIES = {
+    mecontentement: { nom: "🌱 Graine de Mécontentement", desc: "S'utilise depuis le profil d'une ville adverse." },
+    brusque: { nom: "⚡ Attaque Brusque", desc: "S'active automatiquement à ta prochaine attaque." },
+    contreOffensive: { nom: "🛡️ Contre-Offensive", desc: "Active un bouclier de 12h contre les attaquants." },
+    faillite: { nom: "⏳ Faillite Temporelle", desc: "Annule automatiquement ta prochaine défaite subie." }
+};
+function afficherMesStrategies() {
+    const box = document.getElementById('mesStrategiesListe');
+    if (!box) return;
+    const s = monProfil.strategies || {};
+    const actives = Object.entries(NOMS_STRATEGIES).filter(([k]) => (s[k] || 0) > 0);
+    if (actives.length === 0) { box.innerHTML = `<p class="hint">Aucune stratégie en stock — achète-en dans la boutique ci-dessous.</p>`; return; }
+    box.innerHTML = actives.map(([k, info]) => {
+        const bouton = k === 'contreOffensive'
+            ? `<button onclick="activerContreOffensive()" class="btn-sm" style="background:var(--gold);color:#0a061d;">Activer</button>`
+            : '';
+        return `<div class="strategie-row"><div class="info"><h4>${info.nom} <span style="color:#6ee7b7;">(${s[k]})</span></h4><span>${info.desc}</span></div>${bouton}</div>`;
+    }).join('');
+    if (monProfil.contreOffensifFin > Date.now()) {
+        box.innerHTML += `<p style="color:#6ee7b7;font-size:11px;margin-top:6px;">🛡️ Contre-Offensive active encore ${Math.ceil((monProfil.contreOffensifFin - Date.now()) / 3600000)}h.</p>`;
+    }
+}
+window.activerContreOffensive = async function() {
+    if ((monProfil.strategies?.contreOffensive || 0) < 1) return;
+    monProfil.strategies.contreOffensive -= 1;
+    monProfil.contreOffensifFin = Date.now() + 12 * 3600000;
+    await sauvegarder({ strategies: monProfil.strategies, contreOffensifFin: monProfil.contreOffensifFin });
+    afficherToast("🛡️ Contre-Offensive activée pour 12h !");
+    afficherMesStrategies();
+};
 window.acheterArticle = async function(id) {
     const article = ARTICLES.find(a => a.id === id);
     if (monProfil.or < article.prix) { afficherToast("⛔ Pas assez d'or."); return; }
@@ -675,7 +919,10 @@ window.acheterArticle = async function(id) {
     if (id === "boostProd") monProfil.boostProductionFin = Date.now() + 86400000;
     if (id === "sacRessources") { monProfil.ressources.bois += 200; monProfil.ressources.pierre += 200; monProfil.ressources.fer += 100; }
     if (id === "renommer") { const n = prompt("Nouveau nom de ta ville :", monProfil.nomVille || "Lyon"); if (n) monProfil.nomVille = n; else monProfil.or += article.prix; }
-    await sauvegarder({ or: monProfil.or, ressources: monProfil.ressources, boostProductionFin: monProfil.boostProductionFin || null, nomVille: monProfil.nomVille || "Lyon" });
+    if (id === "attaquebrusque") { monProfil.strategies.brusque = (monProfil.strategies.brusque || 0) + 1; }
+    if (id === "contreoffensive") { monProfil.strategies.contreOffensive = (monProfil.strategies.contreOffensive || 0) + 1; }
+    if (id === "faillitetemporelle") { monProfil.strategies.faillite = (monProfil.strategies.faillite || 0) + 1; }
+    await sauvegarder({ or: monProfil.or, ressources: monProfil.ressources, boostProductionFin: monProfil.boostProductionFin || null, nomVille: monProfil.nomVille || "Lyon", strategies: monProfil.strategies, contreOffensifFin: monProfil.contreOffensifFin || null });
     majHUD();
     if (monProfil.nomVille) document.getElementById('hudCityName').innerText = vueActuelle === 'city' ? monProfil.nomVille : 'Le Monde';
     afficherGainFlottant(`✅ ${article.nom}`);
@@ -714,6 +961,8 @@ async function entrerDansLeJeu() {
     if (monProfil.dernierCalcul === undefined) monProfil.dernierCalcul = Date.now();
     if (!monProfil.nomVille) monProfil.nomVille = "Lyon";
     if (monProfil.allianceId === undefined) monProfil.allianceId = null;
+    if (!monProfil.strategies) monProfil.strategies = { mecontentement: 0, brusque: 0 };
+    if (monProfil.prestige === undefined) monProfil.prestige = 0;
 
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('game-ui').style.display = 'flex';
@@ -724,6 +973,8 @@ async function entrerDansLeJeu() {
     demarrerChat();
     demarrerJournal();
     await chargerAutresJoueurs();
+    await chargerTerritoires();
+    await calculerProductionTerritoires();
     demarrerCourrier();
     demarrerParticules();
     document.getElementById('bgMusic').play().catch(() => {}); // silencieux si l'autoplay est bloqué ou le fichier absent
