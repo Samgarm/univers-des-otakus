@@ -34,7 +34,7 @@ function batimentsParDefaut() {
 function profilParDefaut(pseudo, codeRecup) {
   return {
     pseudo, avatar: "👑", codeRecuperation: codeRecup, banni: false, premiereConnexion: true,
-    or: 500, moral: 80, tauxImpots: 10, // 🆕 moral et impôts
+    or: 500, moral: 80, tauxImpots: 10,
     allianceId: null, nomVille: "Lyon", prestige: 0,
     strategies: { mecontentement: 0, brusque: 0, contreOffensive: 0, faillite: 0 }, contreOffensifFin: null, malusProductionFin: null,
     heros: [], meneurIndex: null, herosFonctionnaireIndex: null, heroAttaqueIndex: null,
@@ -72,7 +72,10 @@ window.seConnecter = async function() {
       msg.innerText = snap.exists() ? "Compte banni." : "Code invalide.";
       document.getElementById('loading-overlay').classList.remove('show');
     }
-  } catch (e) { msg.innerText = "Erreur : " + e.message; document.getElementById('loading-overlay').classList.remove('show'); }
+  } catch (e) {
+    msg.innerText = "Erreur : " + e.message;
+    document.getElementById('loading-overlay').classList.remove('show');
+  }
 };
 window.validerInscription = async function() {
   const codeSaisi = document.getElementById('codeInscriptionInput').value.trim();
@@ -140,7 +143,7 @@ function mettreAJourPopulation() {
   monProfil.populationInactive = Math.max(0, monProfil.populationMax - monProfil.populationActive - monProfil.populationMilitaire);
 }
 
-// ==================== PRODUCTION (en direct + hors ligne) ====================
+// ==================== PRODUCTION ====================
 let dernierSauvegarde = Date.now();
 let intervalleProduction = null;
 
@@ -161,7 +164,6 @@ function calculerTauxProduction() {
     tauxN *= bonus; tauxB *= bonus; tauxP *= bonus; tauxF *= bonus;
   }
   if (bonusTechnologie(monProfil, 'agriculture1')) tauxN *= 1.2;
-  // Malus si révolte
   if (monProfil.moral < 30) {
     tauxN *= 0.5; tauxB *= 0.5; tauxP *= 0.5; tauxF *= 0.5;
   }
@@ -173,22 +175,21 @@ function lancerProductionEnDirect() {
   intervalleProduction = setInterval(() => {
     if (!monProfil) return;
     const taux = calculerTauxProduction();
-    // Ajout des ressources (par seconde)
     monProfil.ressources.nourriture += taux.nourriture / 3600;
     monProfil.ressources.bois += taux.bois / 3600;
     monProfil.ressources.pierre += taux.pierre / 3600;
     monProfil.ressources.fer += taux.fer / 3600;
-    // Impôts : or gagné en fonction population et taux
+    // Impôts
     const popTotale = monProfil.populationMax;
-    const gainOrSeconde = (popTotale * (monProfil.tauxImpots / 100)) / 60; // or par seconde
+    const gainOrSeconde = (popTotale * (monProfil.tauxImpots / 100)) / 60;
     monProfil.or += gainOrSeconde;
-    // Moral : baisse si impôts élevés, remonte si bas
+    // Moral
     if (monProfil.tauxImpots > 20) {
       monProfil.moral = Math.max(0, monProfil.moral - 0.01 * (monProfil.tauxImpots - 20));
     } else if (monProfil.tauxImpots < 10) {
       monProfil.moral = Math.min(100, monProfil.moral + 0.005);
     }
-    // Arrondir
+    // Arrondi
     monProfil.ressources.nourriture = Math.floor(monProfil.ressources.nourriture);
     monProfil.ressources.bois = Math.floor(monProfil.ressources.bois);
     monProfil.ressources.pierre = Math.floor(monProfil.ressources.pierre);
@@ -196,7 +197,6 @@ function lancerProductionEnDirect() {
     monProfil.or = Math.floor(monProfil.or);
     monProfil.moral = Math.round(monProfil.moral * 100) / 100;
     majHUD();
-    // Sauvegarde périodique
     if (Date.now() - dernierSauvegarde > 30000) {
       dernierSauvegarde = Date.now();
       sauvegarder({ ressources: monProfil.ressources, or: monProfil.or, moral: monProfil.moral });
@@ -214,7 +214,6 @@ async function calculerProductionAutomatique() {
   const gP = Math.round(taux.pierre * heures);
   const gF = Math.round(taux.fer * heures);
   p.ressources.nourriture += gN; p.ressources.bois += gB; p.ressources.pierre += gP; p.ressources.fer += gF;
-  // Or hors ligne
   const popTotale = calculerPopulationMax();
   p.or += Math.round(popTotale * (p.tauxImpots / 100) * heures);
   p.dernierCalcul = Date.now();
@@ -234,14 +233,14 @@ function majHUD() {
   document.getElementById('hudPierre').innerText = Math.floor(monProfil.ressources.pierre);
   document.getElementById('hudFer').innerText = Math.floor(monProfil.ressources.fer);
   document.getElementById('hudOr').innerText = Math.floor(monProfil.or);
-  // Population
-  if (document.getElementById('hudPopInactive')) {
-    document.getElementById('hudPopInactive').innerText = monProfil.populationInactive;
-    document.getElementById('hudPopMax').innerText = monProfil.populationMax;
-  }
+  // Population si éléments existent
+  const popInactive = document.getElementById('hudPopInactive');
+  const popMax = document.getElementById('hudPopMax');
+  if (popInactive) popInactive.innerText = monProfil.populationInactive;
+  if (popMax) popMax.innerText = monProfil.populationMax;
 }
 
-// ==================== DONNEES BATIMENTS & MONDE ====================
+// ==================== BÂTIMENTS & MONDE ====================
 const BATIMENTS_VILLE = [
   { id:'maison1', nom:'Maison', icon:'fa-house', x:140,y:180 },
   { id:'maison2', nom:'Maison', icon:'fa-house', x:420,y:260 },
@@ -289,6 +288,23 @@ const MARQUEURS_MONDE = [
   { type:'res', id:'terr8', nomtype:'Marécage', ressourceType:'fer', badge:14, icon:'fa-water', x:1600,y:900 }
 ];
 
+// ==================== HÉROS ====================
+const HEROS_RECRUTABLES = [
+  { nom: "Scribe", icon: "📜", etoiles: 1, attaque: 5, defense: 5, prix: 100, competence: { type: "butin", valeur: 0.1, desc: "+10% butin" }, equipements: [] },
+  { nom: "Milicien", icon: "⚔️", etoiles: 1, attaque: 10, defense: 8, prix: 150, competence: { type: "aucune", desc: "Aucune compétence spéciale" }, equipements: [] },
+  { nom: "Chevalier", icon: "🛡️", etoiles: 2, attaque: 25, defense: 20, prix: 400, competence: { type: "immunite", valeur: 0.15, desc: "15% de chance d'ignorer une attaque" }, equipements: [] },
+  { nom: "Archer d'Élite", icon: "🏹", etoiles: 2, attaque: 30, defense: 10, prix: 380, competence: { type: "vitesse", valeur: 0.3, desc: "Déplacements 30% plus rapides" }, equipements: [] },
+  { nom: "Mage de Guerre", icon: "🔮", etoiles: 3, attaque: 50, defense: 15, prix: 900, competence: { type: "critique", valeur: 0.2, desc: "20% de chance d'attaque critique (+50% dégâts)" }, equipements: [] },
+  { nom: "Paladin", icon: "⚜️", etoiles: 3, attaque: 35, defense: 45, prix: 1000, competence: { type: "immunite", valeur: 0.25, desc: "25% de chance d'ignorer une attaque" }, equipements: [] },
+  { nom: "Assassin Royal", icon: "🗡️", etoiles: 4, attaque: 90, defense: 10, prix: 2200, competence: { type: "critique", valeur: 0.35, desc: "35% de chance d'attaque critique (+50% dégâts)" }, equipements: [] },
+  { nom: "Prêtresse", icon: "🌙", etoiles: 4, attaque: 20, defense: 70, prix: 2100, competence: { type: "butin", valeur: 0.25, desc: "+25% butin" }, equipements: [] }
+];
+const HEROS_LEGENDAIRES = [
+  { nom: "Dragon d'Airain", icon: "🐉", etoiles: 5, attaque: 200, defense: 120, competence: { type: "critique", valeur: 0.4, desc: "40% de chance d'attaque critique (+50% dégâts)" }, equipements: [] },
+  { nom: "Seigneur des Abysses", icon: "🌊", etoiles: 5, attaque: 150, defense: 180, competence: { type: "immunite", valeur: 0.35, desc: "35% de chance d'ignorer une attaque" }, equipements: [] },
+  { nom: "Phénix Immortel", icon: "🔥", etoiles: 5, attaque: 175, defense: 150, competence: { type: "vitesse", valeur: 0.5, desc: "Déplacements 50% plus rapides + 20% butin" }, equipements: [] }
+];
+
 // ==================== TROUPES (12 types) ====================
 const DEFS_TROUPES = {
   fantassins:      { nom:'Fantassins',       icon:'fa-shield',              attaque:6,  defense:9,  population:1, cout:{nourriture:20, bois:5, fer:0} },
@@ -305,33 +321,33 @@ const DEFS_TROUPES = {
   pretres:         { nom:'Prêtres',          icon:'fa-hands-praying',       attaque:5,  defense:10, population:2, cout:{nourriture:30, bois:10, fer:10} }
 };
 
-// ==================== EQUIPEMENTS & SETS ====================
+// ==================== ÉQUIPEMENTS & SETS ====================
 const TOUS_EQUIPEMENTS = [
-  // Set Lion (Guerrier) - 3/5 immortalité, 5/5 contre-attaque
+  // Set Lion (Guerrier)
   { id:'lion_epee', slot:'arme', nom:'⚔️ Épée du Lion', att:20, def:0, vit:0, set:'Lion', source:'forge', coutOr:300, coutMat:{bois:20, fer:40}, rarete:'Commun' },
   { id:'lion_casque', slot:'casque', nom:'🪖 Heaume du Lion', att:0, def:20, vit:0, set:'Lion', source:'forge', coutOr:250, coutMat:{bois:10, fer:30}, rarete:'Commun' },
   { id:'lion_armure', slot:'armure', nom:'🛡️ Cuirasse du Lion', att:10, def:15, vit:0, set:'Lion', source:'forge', coutOr:400, coutMat:{bois:15, fer:50}, rarete:'Rare' },
   { id:'lion_bottes', slot:'bottes', nom:'👢 Bottes du Lion', att:0, def:5, vit:3, set:'Lion', source:'forge', coutOr:200, coutMat:{bois:5, fer:10}, rarete:'Commun' },
   { id:'lion_medaille', slot:'medaille', nom:'🎖️ Médaille du Lion', att:10, def:10, vit:0, set:'Lion', source:'forge', coutOr:350, coutMat:{bois:10, fer:20}, rarete:'Rare' },
-  // Set Faille Temporelle (5/5 reset combat +80 force)
+  // Set Faille Temporelle
   { id:'faille_epee', slot:'arme', nom:'🗡️ Lame de la Faille', att:35, def:-5, vit:5, set:'Faille Temporelle', source:'boutique', coutOr:1500, rarete:'Épique' },
   { id:'faille_casque', slot:'casque', nom:'🌌 Heaume Temporel', att:0, def:25, vit:5, set:'Faille Temporelle', source:'boutique', coutOr:1200, rarete:'Épique' },
   { id:'faille_armure', slot:'armure', nom:'🌌 Armure Temporelle', att:15, def:30, vit:-2, set:'Faille Temporelle', source:'boutique', coutOr:1800, rarete:'Épique' },
   { id:'faille_bottes', slot:'bottes', nom:'👢 Bottes Temporelles', att:5, def:10, vit:15, set:'Faille Temporelle', source:'boutique', coutOr:1000, rarete:'Épique' },
   { id:'faille_medaille', slot:'medaille', nom:'⏳ Pendentif de la Faille', att:10, def:15, vit:5, set:'Faille Temporelle', source:'boutique', coutOr:2000, rarete:'Épique' },
-  // Set Assassin (3/5 critique, 5/5 reset +80)
+  // Set Assassin
   { id:'assassin_epee', slot:'arme', nom:'🗡️ Lame de l\'Assassin', att:30, def:0, vit:10, set:'Assassin', source:'boutique', coutOr:1400, rarete:'Rare' },
   { id:'assassin_casque', slot:'casque', nom:'🌑 Masque de l\'Assassin', att:10, def:15, vit:10, set:'Assassin', source:'boutique', coutOr:1100, rarete:'Rare' },
   { id:'assassin_armure', slot:'armure', nom:'🌑 Cape de l\'Assassin', att:20, def:20, vit:10, set:'Assassin', source:'boutique', coutOr:1700, rarete:'Rare' },
   { id:'assassin_bottes', slot:'bottes', nom:'👢 Bottes de l\'Assassin', att:5, def:5, vit:20, set:'Assassin', source:'boutique', coutOr:900, rarete:'Rare' },
   { id:'assassin_medaille', slot:'medaille', nom:'🎖️ Insigne de l\'Assassin', att:15, def:5, vit:10, set:'Assassin', source:'boutique', coutOr:1900, rarete:'Rare' },
-  // Set Berserker (3/5 furie, 5/5 dernier souffle)
+  // Set Berserker
   { id:'berserker_epee', slot:'arme', nom:'🪓 Hache du Berserker', att:40, def:-10, vit:0, set:'Berserker', source:'forge', coutOr:1200, coutMat:{bois:50, fer:80}, rarete:'Rare' },
   { id:'berserker_casque', slot:'casque', nom:'🐺 Casque du Berserker', att:15, def:10, vit:5, set:'Berserker', source:'forge', coutOr:900, coutMat:{bois:30, fer:40}, rarete:'Rare' },
   { id:'berserker_armure', slot:'armure', nom:'🛡️ Armure du Berserker', att:20, def:25, vit:-5, set:'Berserker', source:'forge', coutOr:1500, coutMat:{bois:40, fer:70}, rarete:'Rare' },
   { id:'berserker_bottes', slot:'bottes', nom:'👢 Bottes du Berserker', att:10, def:5, vit:10, set:'Berserker', source:'forge', coutOr:700, coutMat:{bois:20, fer:30}, rarete:'Rare' },
   { id:'berserker_medaille', slot:'medaille', nom:'🎖️ Médaille du Berserker', att:20, def:5, vit:5, set:'Berserker', source:'forge', coutOr:1300, coutMat:{bois:30, fer:50}, rarete:'Rare' },
-  // Set Paladin (3/5 bouclier sacré, 5/5 inversion)
+  // Set Paladin
   { id:'paladin_epee', slot:'arme', nom:'⚔️ Épée du Paladin', att:25, def:10, vit:0, set:'Paladin', source:'boutique', coutOr:1600, rarete:'Épique' },
   { id:'paladin_casque', slot:'casque', nom:'👑 Heaume du Paladin', att:5, def:30, vit:0, set:'Paladin', source:'boutique', coutOr:1400, rarete:'Épique' },
   { id:'paladin_armure', slot:'armure', nom:'✨ Armure Sacrée', att:10, def:40, vit:-3, set:'Paladin', source:'boutique', coutOr:2000, rarete:'Épique' },
@@ -343,7 +359,6 @@ function calculerStatsHeroAvecEquipements(hero) {
   let att = hero.attaque || 0;
   let def = hero.defense || 0;
   let vit = 0;
-  let passifs = [];
   if (hero.equipements) {
     hero.equipements.forEach(idEquip => {
       const equip = TOUS_EQUIPEMENTS.find(e => e.id === idEquip);
@@ -351,9 +366,6 @@ function calculerStatsHeroAvecEquipements(hero) {
         att += equip.att;
         def += equip.def;
         vit += equip.vit || 0;
-        if (equip.set) {
-          // Gérer les compétences de set plus tard
-        }
       }
     });
   }
@@ -404,7 +416,7 @@ function obtenirEffetsSet(setNom, niveau) {
   return effets[setNom] ? effets[setNom][niveau] : null;
 }
 
-// ==================== FONCTIONS EQUIPEMENTS ====================
+// ==================== FONCTIONS ÉQUIPEMENT ====================
 function afficherBoutiqueEquipement() {
   const box = document.getElementById('equipementBoutiqueListe');
   if (!box) return;
@@ -454,7 +466,7 @@ window.forgerEquipement = async function(id) {
   afficherToast(`${equip.nom} forgé !`);
 };
 
-// ==================== PANEL HÉROS EQUIPEMENT ====================
+// ==================== PANEL HÉROS ÉQUIPEMENT ====================
 function afficherPanelHeros(heroIndex) {
   const hero = monProfil.heros[heroIndex];
   if (!hero) return;
@@ -526,7 +538,6 @@ window.ouvrirAttaque = function(cible) {
 window.selectionnerHeroAttaque = function(index) {
   monProfil.heroAttaqueIndex = index;
   document.getElementById('hero-attaque-backdrop').style.display = 'none';
-  // Afficher le panneau des troupes
   const box = document.getElementById('attaqueTroupes');
   let html = '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;">';
   for (const [key, def] of Object.entries(DEFS_TROUPES)) {
@@ -541,7 +552,7 @@ window.fermerSelectionHeroAttaque = function() {
   document.getElementById('hero-attaque-backdrop').style.display = 'none';
 };
 
-// ==================== COMBAT (avec sets) ====================
+// ==================== COMBAT ====================
 function bonusMeneur(profil) {
   const idx = profil.heroAttaqueIndex !== undefined ? profil.heroAttaqueIndex : profil.meneurIndex;
   if (idx !== null && idx !== undefined && profil.heros && profil.heros[idx]) {
@@ -564,33 +575,28 @@ function forceDefense(profil) {
   return Math.round((base + niveauMirador * 10 + bonusMeneur(profil).defense) * bonusTech);
 }
 
-// Appliquer les effets de set avant le combat (pour héros attaquant)
 function appliquerSetsAttaquant(attaque) {
   const hero = monProfil.heros[monProfil.heroAttaqueIndex];
   if (!hero) return attaque;
   const setsActifs = calculerSetActifs(hero);
   for (const [nomSet, niveau] of Object.entries(setsActifs)) {
     if (nomSet === 'Berserker' && niveau >= 3) attaque = Math.round(attaque * 1.15);
-    if (nomSet === 'Assassin' && niveau >= 3) attaque = Math.round(attaque * 1.1); // bonus critique approximé
+    if (nomSet === 'Assassin' && niveau >= 3) attaque = Math.round(attaque * 1.1);
   }
   return attaque;
 }
-
-// Appliquer les effets de set du défenseur
-function appliquerSetsDefenseur(defense) {
-  // Le défenseur utilise son meneur ou premier héros
-  const idx = monProfil.meneurIndex || 0;
-  const hero = monProfil.heros[idx];
+function appliquerSetsDefenseur(profil, defense) {
+  const idx = profil.meneurIndex || 0;
+  const hero = profil.heros[idx];
   if (!hero) return defense;
   const setsActifs = calculerSetActifs(hero);
   for (const [nomSet, niveau] of Object.entries(setsActifs)) {
-    if (nomSet === 'Paladin' && niveau >= 3) defense = Math.round(defense * 1.25); // bouclier sacré
-    if (nomSet === 'Lion' && niveau >= 3) defense = Math.round(defense * 1.15); // défense accrue
+    if (nomSet === 'Paladin' && niveau >= 3) defense = Math.round(defense * 1.25);
+    if (nomSet === 'Lion' && niveau >= 3) defense = Math.round(defense * 1.15);
   }
   return defense;
 }
 
-// Modifier la fonction lancerAttaque pour appliquer les sets et gérer reset/immortalité
 window.lancerAttaque = async function() {
   const total = Object.values(monProfil.troupes).reduce((a, b) => a + b, 0);
   if (total === 0) { afficherToast("⛔ Entraîne des troupes d'abord."); return; }
@@ -605,17 +611,14 @@ window.lancerAttaque = async function() {
     const defenseur = snap.data();
     if (defenseur.village?.bouclierFin > Date.now()) { afficherToast("🛡️ Ville protégée par un bouclier."); return; }
     let sonDefense = forceDefense(defenseur);
-    sonDefense = appliquerSetsDefenseur.call({ monProfil: defenseur }, sonDefense);
+    sonDefense = appliquerSetsDefenseur(defenseur, sonDefense);
     victoire = monAttaque * (0.85 + Math.random() * 0.3) >= sonDefense;
-    // Effet "Faille Temporelle" (reset) pour l'attaquant
     const heroAttaquant = monProfil.heros[monProfil.heroAttaqueIndex];
     const setsAttaquant = calculerSetActifs(heroAttaquant);
     if (!victoire && setsAttaquant['Faille Temporelle'] === 5) {
-      // Reset + 80 force
       victoire = (monAttaque + 80) >= sonDefense;
       afficherToast("⏳ Faille Temporelle activée ! Le combat recommence avec +80 de force.");
     }
-    // Effet "Immortalité" défenseur (set Lion 3/5)
     const heroDefenseur = defenseur.heros[defenseur.meneurIndex || 0];
     const setsDefenseur = calculerSetActifs(heroDefenseur);
     if (victoire && setsDefenseur['Lion'] === 3) {
@@ -627,17 +630,755 @@ window.lancerAttaque = async function() {
   await deplacerTroupes(cibleAttaque.nom);
   await animerCombat(monProfil.pseudo, monProfil.avatar, cibleAttaque.nom, cibleAttaque.type === 'pnj' ? '👹' : '🏰', victoire);
 
-  // Gérer les conséquences (récompenses/pertes)
-  // ... (code existant de butin, etc.)
+  // Conséquences (butin/pertes) — version simplifiée
+  if (victoire) {
+    if (cibleAttaque.type === 'pnj') {
+      const butinOr = 20 + Math.floor(cibleAttaque.force * 0.2);
+      const butinBois = Math.floor(cibleAttaque.force * 0.3);
+      const butinPierre = Math.floor(cibleAttaque.force * 0.25);
+      monProfil.or += butinOr;
+      monProfil.ressources.bois += butinBois;
+      monProfil.ressources.pierre += butinPierre;
+      afficherToast(`🏆 Victoire ! +${butinOr}🪙 +${butinBois}🪵 +${butinPierre}🪨`);
+    } else {
+      // PvP : on pourrait piller, mais pour l'instant on donne un bonus simple
+      monProfil.prestige += 15;
+      afficherToast("🏆 Victoire contre " + cibleAttaque.nom + " !");
+    }
+    await sauvegarder({ or: monProfil.or, ressources: monProfil.ressources, prestige: monProfil.prestige });
+  } else {
+    reduireTroupes(monProfil.troupes, 0.2);
+    await sauvegarder({ troupes: monProfil.troupes });
+    afficherToast("💀 Défaite...");
+  }
+  majHUD();
+  fermerTiroir();
 };
 
-// Le reste du script (quêtes, carte, etc.) reste identique à la version précédente.
-// Par souci de brièveté, je n'inclus pas tout ici, mais tu peux copier les fonctions manquantes depuis le message précédent.
-// Assure-toi d'avoir toutes les fonctions de carte, tiroirs, etc.
+function reduireTroupes(troupes, ratio) {
+  let perdues = 0;
+  Object.keys(troupes).forEach(k => {
+    const perte = Math.floor((troupes[k] || 0) * ratio);
+    troupes[k] = Math.max(0, (troupes[k] || 0) - perte);
+    perdues += perte;
+  });
+  return perdues;
+}
 
-// ==================== INITIALISATION ET MODALS DYNAMIQUES ====================
+// ==================== RECHERCHE ====================
+const TECHNOLOGIES = [
+  { id: "forge1", nom: "🔥 Forge Améliorée", desc: "+15% attaque de toutes tes troupes.", prix: 800, materiaux: { bois: 200, pierre: 100 } },
+  { id: "fortif1", nom: "🧱 Fortifications", desc: "+15% défense de toutes tes troupes.", prix: 800, materiaux: { pierre: 200, fer: 100 } },
+  { id: "agriculture1", nom: "🌾 Agronomie", desc: "+20% production automatique de nourriture.", prix: 500, materiaux: { bois: 100 } },
+  { id: "commerce1", nom: "💰 Routes Commerciales", desc: "+10% or gagné en combat.", prix: 900, materiaux: { fer: 150 } }
+];
+function bonusTechnologie(profil, id) { return (profil.recherches || {})[id] ? true : false; }
+function afficherRecherche() {
+  const box = document.getElementById('rechercheListe');
+  if (!box) return;
+  box.innerHTML = TECHNOLOGIES.map(t => {
+    const possede = bonusTechnologie(monProfil, t.id);
+    const coutTxt = Object.entries(t.materiaux).map(([k, v]) => `${v}${k === 'bois' ? '🪵' : k === 'pierre' ? '🪨' : '⛓️'}`).join(' ');
+    return `<div class="item-card"><div class="info"><h4>${t.nom}</h4><span>${t.desc} — ${t.prix}🪙 + ${coutTxt}</span></div>${possede ? '<span style="color:#6ee7b7;font-size:11px;">✅ Recherché</span>' : `<button onclick="rechercherTech('${t.id}')" class="btn-sm" style="background:var(--gold);color:#0a061d;">Rechercher</button>`}</div>`;
+  }).join('');
+}
+window.rechercherTech = async function(id) {
+  const t = TECHNOLOGIES.find(x => x.id === id);
+  if (monProfil.or < t.prix) { afficherToast("⛔ Pas assez d'or."); return; }
+  for (const [mat, qte] of Object.entries(t.materiaux)) { if (monProfil.ressources[mat] < qte) { afficherToast(`⛔ Il manque du ${mat}.`); return; } }
+  monProfil.or -= t.prix;
+  Object.entries(t.materiaux).forEach(([mat, qte]) => monProfil.ressources[mat] -= qte);
+  monProfil.recherches = { ...(monProfil.recherches || {}), [id]: true };
+  await sauvegarder({ or: monProfil.or, ressources: monProfil.ressources, recherches: monProfil.recherches });
+  majHUD();
+  afficherToast(`🧪 ${t.nom} recherché !`);
+  afficherRecherche();
+};
+
+// ==================== DÉPLACEMENT & COMBAT ANIMÉ ====================
+function deplacerTroupes(nomCible) {
+  return new Promise((resolve) => {
+    const overlay = document.getElementById('deplacement-troupes-backdrop');
+    const texte = document.getElementById('deplacementTexte');
+    const icone = document.getElementById('deplacementIcone');
+    if (!overlay) { resolve(); return; }
+    texte.innerText = `🐎 Tes troupes se dirigent vers ${nomCible}...`;
+    overlay.style.display = 'flex';
+    setTimeout(() => { overlay.style.display = 'none'; resolve(); }, 1800);
+  });
+}
+let _combatAnimeResolve = null;
+function animerCombat(nomMoi, avatarMoi, nomAdv, avatarAdv, victoire) {
+  return new Promise((resolve) => {
+    _combatAnimeResolve = resolve;
+    const backdrop = document.getElementById('combat-anime-backdrop');
+    if (!backdrop) { resolve(); return; }
+    document.getElementById('combatAvatarMoi').innerText = avatarMoi || '⚔️';
+    document.getElementById('combatAvatarAdv').innerText = avatarAdv || '👹';
+    document.getElementById('combatNomMoi').innerText = nomMoi;
+    document.getElementById('combatNomAdv').innerText = nomAdv;
+    document.getElementById('combatPvMoi').style.width = '100%';
+    document.getElementById('combatPvAdv').style.width = '100%';
+    document.getElementById('combatLogAnime').innerText = "⚔️ Le combat commence...";
+    backdrop.style.display = 'flex';
+    // Simuler les rounds
+    let round = 0;
+    const interval = setInterval(() => {
+      round++;
+      document.getElementById('combatLogAnime').innerText += `\nRound ${round}...`;
+      if (round >= 3) {
+        clearInterval(interval);
+        document.getElementById('combatLogAnime').innerText += victoire ? "\n🏆 Victoire !" : "\n💀 Défaite...";
+        setTimeout(() => {
+          backdrop.style.display = 'none';
+          if (_combatAnimeResolve) { _combatAnimeResolve(); _combatAnimeResolve = null; }
+        }, 1000);
+      }
+    }, 700);
+  });
+}
+window.passerCombat = function() {
+  const backdrop = document.getElementById('combat-anime-backdrop');
+  if (backdrop) backdrop.style.display = 'none';
+  if (_combatAnimeResolve) { _combatAnimeResolve(); _combatAnimeResolve = null; }
+};
+
+function afficherToast(msg) {
+  const t = document.getElementById('toast');
+  if (!t) return;
+  t.innerText = msg;
+  t.style.display = 'block';
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.style.display = 'none', 2400);
+}
+
+// ==================== JOURNAL ====================
+async function ajouterAuJournal(texte) {
+  await addDoc(collection(db, COL_JOURNAL), { texte, date: serverTimestamp() });
+}
+let _dernieresEntreesJournal = [];
+let _indexTicker = 0, _intervalTicker = null;
+function demarrerJournal() {
+  onSnapshot(query(collection(db, COL_JOURNAL), orderBy("date", "desc")), (snap) => {
+    const box = document.getElementById('journalMessages');
+    _dernieresEntreesJournal = [];
+    let html = "";
+    let c = 0;
+    snap.forEach(d => {
+      if (c++ >= 40) return;
+      _dernieresEntreesJournal.push(d.data().texte);
+      html += `<div class="chat-msg">📌 ${d.data().texte}</div>`;
+    });
+    if (box) box.innerHTML = html || `<p class="hint">Aucun événement pour l'instant.</p>`;
+  });
+  if (_intervalTicker) clearInterval(_intervalTicker);
+  _intervalTicker = setInterval(() => {
+    if (!_dernieresEntreesJournal.length) return;
+    _indexTicker = (_indexTicker + 1) % _dernieresEntreesJournal.length;
+    const ticker = document.getElementById('hudTicker');
+    if (ticker) ticker.innerText = "📯 " + _dernieresEntreesJournal[_indexTicker];
+  }, 5000);
+}
+
+// ==================== PROFIL VILLE & TERRITOIRE ====================
+window.ouvrirProfilVille = async function(id) {
+  const snap = await getDoc(doc(db, COL, id));
+  if (!snap.exists()) { afficherToast("Cette ville n'existe plus."); return; }
+  const cible = snap.data();
+  const modal = document.getElementById('profil-ville-modal');
+  modal.innerHTML = `<h3>🏰 ${cible.nomVille || cible.pseudo}</h3><p>Seigneur : ${cible.pseudo}</p><button class="btn-gold" onclick="ouvrirAttaque({type:'joueur', id:'${id}', nom:'${cible.pseudo}'}); fermerProfilVille();">⚔️ Attaquer</button><button class="close-btn" onclick="fermerProfilVille()">Fermer</button>`;
+  document.getElementById('profil-ville-backdrop').style.display = 'flex';
+};
+window.fermerProfilVille = function() { document.getElementById('profil-ville-backdrop').style.display = 'none'; };
+window.espionnerJoueur = async function(id) {
+  const snap = await getDoc(doc(db, COL, id));
+  if (!snap.exists()) return;
+  const cible = snap.data();
+  alert(`🕵️ Espionnage : ${cible.pseudo} — Or: ${cible.or}, Force: ${forceAttaque(cible)}, Défense: ${forceDefense(cible)}`);
+  fermerProfilVille();
+};
+
+let _territoiresPossedes = {};
+async function chargerTerritoires() {
+  const snap = await getDocs(collection(db, COL_TERRITOIRES));
+  _territoiresPossedes = {};
+  snap.forEach(d => { _territoiresPossedes[d.id] = d.data(); });
+}
+async function calculerProductionTerritoires() {
+  const mesTerritoires = MARQUEURS_MONDE.filter(m => m.type === 'res' && _territoiresPossedes[m.id]?.proprietaireId === monId);
+  if (mesTerritoires.length === 0) return;
+  let gains = { bois:0, pierre:0, fer:0, nourriture:0 };
+  for (const t of mesTerritoires) {
+    const info = _territoiresPossedes[t.id];
+    const heures = Math.min(48, (Date.now() - (info.dernierCalcul || Date.now())) / 3600000);
+    const gain = Math.round((3 + t.badge * 0.4) * heures);
+    gains[t.ressourceType] = (gains[t.ressourceType] || 0) + gain;
+    info.dernierCalcul = Date.now();
+    await setDoc(doc(db, COL_TERRITOIRES, t.id), info);
+  }
+  monProfil.ressources.bois += gains.bois;
+  monProfil.ressources.pierre += gains.pierre;
+  monProfil.ressources.fer += gains.fer;
+  monProfil.ressources.nourriture += gains.nourriture;
+  await sauvegarder({ ressources: monProfil.ressources });
+  if (gains.bois + gains.pierre + gains.fer + gains.nourriture > 0)
+    afficherToast(`🗺️ Territoires : +${gains.bois}🪵 +${gains.pierre}🪨 +${gains.fer}⛓️ +${gains.nourriture}🌾`);
+}
+window.ouvrirProfilTerritoire = function(id) {
+  const t = MARQUEURS_MONDE.find(m => m.id === id);
+  const info = _territoiresPossedes[id];
+  const modal = document.getElementById('profil-territoire-modal');
+  let html = `<h3>${t.nomtype} (niv.${t.badge})</h3>`;
+  if (!info || !info.proprietaireId) {
+    html += `<p>Gardé par un gardien (force ${t.badge * 70}).</p><button class="btn-gold" onclick="attaquerTerritoire('${id}')">⚔️ Attaquer le Gardien</button>`;
+  } else if (info.proprietaireId === monId) {
+    html += `<p>🏳️ Ce territoire t'appartient.</p>`;
+  } else {
+    html += `<p>Contrôlé par ${info.proprietairePseudo}.</p><button class="btn-gold" onclick="attaquerTerritoire('${id}')">⚔️ Conquérir</button>`;
+  }
+  html += `<button class="close-btn" onclick="fermerProfilTerritoire()">Fermer</button>`;
+  modal.innerHTML = html;
+  document.getElementById('profil-territoire-backdrop').style.display = 'flex';
+};
+window.fermerProfilTerritoire = function() { document.getElementById('profil-territoire-backdrop').style.display = 'none'; };
+window.attaquerTerritoire = async function(id) {
+  const t = MARQUEURS_MONDE.find(m => m.id === id);
+  const info = _territoiresPossedes[id];
+  const monAttaque = forceAttaque(monProfil);
+  let seuil;
+  if (!info || !info.proprietaireId) { seuil = t.badge * 70; }
+  else { const propSnap = await getDoc(doc(db, COL, info.proprietaireId)); seuil = forceDefense(propSnap.data()); }
+  const victoire = monAttaque * (0.85 + Math.random() * 0.3) >= seuil;
+  await deplacerTroupes(t.nomtype);
+  await animerCombat(monProfil.pseudo, monProfil.avatar, t.nomtype, '🐊', victoire);
+  if (victoire) {
+    const nouvelleInfo = { proprietaireId: monId, proprietairePseudo: monProfil.pseudo, dernierCalcul: Date.now() };
+    await setDoc(doc(db, COL_TERRITOIRES, id), nouvelleInfo);
+    _territoiresPossedes[id] = nouvelleInfo;
+    const gain = 20 + t.badge * 5;
+    monProfil.ressources[t.ressourceType] += gain;
+    await sauvegarder({ ressources: monProfil.ressources });
+    afficherToast(`🏁 Territoire conquis ! +${gain} ${t.ressourceType}`);
+    rendreMondeCanvas();
+  } else {
+    reduireTroupes(monProfil.troupes, 0.1);
+    await sauvegarder({ troupes: monProfil.troupes });
+    afficherToast("💀 Échec de la conquête.");
+  }
+  fermerProfilTerritoire();
+};
+
+// ==================== CHAT ====================
+function demarrerChat() {
+  onSnapshot(query(collection(db, COL_CHAT), orderBy("date")), (snap) => {
+    const box = document.getElementById('chatMessages');
+    if (!box) return;
+    box.innerHTML = "";
+    snap.forEach(d => {
+      const m = d.data();
+      box.innerHTML += `<div class="chat-msg"><b>${m.pseudo} :</b> ${m.texte}</div>`;
+    });
+    box.scrollTop = box.scrollHeight;
+  });
+}
+window.envoyerMessageChat = async function() {
+  const input = document.getElementById('chatInput');
+  if (!input.value.trim()) return;
+  await addDoc(collection(db, COL_CHAT), { pseudo: monProfil.pseudo, texte: input.value.trim(), date: serverTimestamp() });
+  input.value = "";
+};
+
+// ==================== PUISSANCE ====================
+function calculerPuissanceDe(profil) {
+  const niveauBatiments = Object.values(profil.batiments || {}).reduce((s, n) => s + n, 0);
+  const nbTroupes = Object.values(profil.troupes || {}).reduce((s, n) => s + n, 0);
+  const nbEquipement = Object.values(profil.equipement || {}).reduce((s, n) => s + n, 0);
+  const scoreHeros = (profil.heros || []).reduce((s, h) => s + h.etoiles * 30, 0);
+  return niveauBatiments * 25 + nbTroupes * 8 + nbEquipement * 40 + scoreHeros + Math.floor((profil.or || 0) / 10);
+}
+function calculerPuissance() { return calculerPuissanceDe(monProfil); }
+
+// ==================== GAINS FLOTTANTS ====================
+function afficherGainFlottant(texte) {
+  const zone = document.getElementById('gains-flottants');
+  if (!zone) return;
+  const el = document.createElement('div');
+  el.className = 'gain-flottant';
+  el.innerText = texte;
+  el.style.left = (40 + Math.random() * 40) + '%';
+  zone.appendChild(el);
+  setTimeout(() => el.remove(), 1500);
+}
+
+// ==================== CARTE ====================
+let vueActuelle = 'city';
+const canvas = document.getElementById('map-canvas');
+const viewport = document.getElementById('map-viewport');
+
+function rendreVilleCanvas() {
+  canvas.className = 'terrain-city';
+  canvas.innerHTML = '';
+  BATIMENTS_VILLE.forEach(b => {
+    const niv = monProfil.batiments[b.id] || 1;
+    const el = document.createElement('div');
+    el.className = 'marker' + (b.capital ? ' capital' : '');
+    el.style.left = b.x + 'px';
+    el.style.top = b.y + 'px';
+    el.onclick = () => {
+      if (b.id === 'baraques') { toggleTiroir('baraques'); return; }
+      if (b.id === 'rassemblement') { toggleTiroir('rassemblement'); return; }
+      if (b.id === 'forgeron') { toggleTiroir('forgeron'); return; }
+      if (b.id === 'senat') { ouvrirModal('senat', 'Sénat', 'fa-university', b.img); return; }
+      ouvrirModal(b.id, b.nom, b.icon, b.img);
+    };
+    const icon = b.img ? `<img src="${b.img}" style="width:100%;height:100%;object-fit:cover;border-radius:8px;">` : `<i class="fas ${b.icon}"></i>`;
+    el.innerHTML = `<div class="marker-icon">${icon}<div class="marker-level">${niv}</div></div><div class="marker-ribbon">${b.nom}</div>`;
+    canvas.appendChild(el);
+  });
+}
+
+const ICONES_TERRITOIRE = {
+  'Forêt': { emoji: '🌲', classe: 'foret' },
+  'Montagne': { emoji: '⛰️', classe: 'montagne' },
+  'Mine': { emoji: '💎', classe: 'montagne' },
+  'Champ': { emoji: '🌾', classe: 'marecage' },
+  'Marécage': { emoji: '🐊', classe: 'marecage' }
+};
+
+function rendreMondeCanvas() {
+  canvas.className = 'terrain-world';
+  canvas.innerHTML = '';
+  MARQUEURS_MONDE.forEach(m => {
+    if (m.type === 'res') {
+      const info = _territoiresPossedes[m.id];
+      const deco = ICONES_TERRITOIRE[m.nomtype] || { emoji: '🗺️', classe: 'foret' };
+      const el = document.createElement('div');
+      el.className = 'territoire-marker';
+      el.style.left = m.x + 'px';
+      el.style.top = m.y + 'px';
+      const statutClasse = info?.proprietaireId === monId ? 'possede-moi' : (info?.proprietaireId ? 'possede-autre' : '');
+      el.onclick = () => ouvrirProfilTerritoire(m.id);
+      el.innerHTML = `<div class="territoire-icone ${deco.classe} ${statutClasse}">${deco.emoji}</div><div class="territoire-label">${m.nomtype} ${info?.proprietaireId ? (info.proprietaireId === monId ? '(toi)' : '(' + info.proprietairePseudo + ')') : ''}</div>`;
+      canvas.appendChild(el);
+      return;
+    }
+    const el = document.createElement('div');
+    el.className = 'wmarker';
+    el.style.left = m.x + 'px';
+    el.style.top = m.y + 'px';
+    el.onclick = () => {
+      if (m.type === 'mine-city') { allerVue('city'); afficherToast('🏛️ Entrée dans ta ville'); return; }
+      if (m.type === 'monster') { ouvrirAttaque({ type: 'pnj', nom: 'le monstre niv.' + m.badge, force: m.badge * 60 }); return; }
+      if (m.type === 'camp') { ouvrirAttaque({ type: 'pnj', nom: 'le campement niv.' + m.badge, force: m.badge * 50 }); return; }
+      if (m.type === 'grande-ville') { ouvrirAttaque({ type: 'pnj', nom: m.nom, force: m.badge * 80, grandeVille: true }); return; }
+    };
+    if (m.type === 'mine-city') {
+      el.innerHTML = `<i class="fas ${m.icon} wmarker-icon mine-city"></i><div class="wmarker-label">${m.nom}</div>`;
+    } else if (m.type === 'grande-ville') {
+      el.innerHTML = `<div class="wmarker-badge monster" style="background:#7c3aed;">${m.badge}</div><i class="fas ${m.icon} wmarker-icon" style="color:var(--gold);"></i><div class="wmarker-label">🌟 ${m.nom}</div>`;
+    } else {
+      el.innerHTML = `<div class="wmarker-badge monster">${m.badge}</div><i class="fas ${m.icon} wmarker-icon" style="color:#f87171;"></i>`;
+    }
+    canvas.appendChild(el);
+  });
+
+  // Joueurs
+  _autresJoueurs.forEach(j => {
+    const pos = positionJoueur(j.id);
+    const el = document.createElement('div');
+    el.className = 'royaume-marker';
+    el.style.left = pos.x + 'px';
+    el.style.top = pos.y + 'px';
+    el.onclick = () => ouvrirProfilVille(j.id);
+    el.innerHTML = `<div class="royaume-3d"><div class="royaume-toit"></div><div class="royaume-tourelle gauche"></div><div class="royaume-tourelle droite"></div><div class="royaume-mur"></div><div class="royaume-ombre"></div></div><div class="royaume-label">${j.pseudo}</div><div class="royaume-puissance">⚡${calculerPuissanceDe(j)}</div>`;
+    canvas.appendChild(el);
+  });
+}
+
+let panX = 0, panY = 0, dragging = false, startX = 0, startY = 0, startPanX = 0, startPanY = 0;
+function clampPan() {
+  const vw = viewport.clientWidth, vh = viewport.clientHeight;
+  const cw = vueActuelle === 'city' ? 1700 : 2200;
+  const ch = vueActuelle === 'city' ? 2400 : 2800;
+  const minX = Math.min(0, vw - cw), minY = Math.min(0, vh - ch);
+  panX = Math.max(minX, Math.min(0, panX));
+  panY = Math.max(minY, Math.min(0, panY));
+}
+function appliquerPan() { canvas.style.transform = `translate(${panX}px, ${panY}px)`; }
+viewport.addEventListener('pointerdown', e => { dragging = true; viewport.classList.add('grabbing'); startX = e.clientX; startY = e.clientY; startPanX = panX; startPanY = panY; viewport.setPointerCapture(e.pointerId); });
+viewport.addEventListener('pointermove', e => { if (!dragging) return; panX = startPanX + (e.clientX - startX); panY = startPanY + (e.clientY - startY); clampPan(); appliquerPan(); });
+['pointerup', 'pointercancel', 'pointerleave'].forEach(evt => viewport.addEventListener(evt, () => { dragging = false; viewport.classList.remove('grabbing'); }));
+
+function allerVue(vue) {
+  vueActuelle = vue;
+  document.getElementById('nav-ville-label').innerText = vue === 'city' ? 'Ville' : 'Monde';
+  document.getElementById('hudCityName').innerText = vue === 'city' ? monProfil.nomVille : 'Le Monde';
+  if (vue === 'city') rendreVilleCanvas(); else rendreMondeCanvas();
+  recentrerCarte();
+}
+window.toggleVue = function() {
+  allerVue(vueActuelle === 'city' ? 'world' : 'city');
+  afficherToast(vueActuelle === 'city' ? "🏛️ Retour à ta ville" : "🌍 Carte du monde");
+};
+function recentrerCarte() {
+  const vw = viewport.clientWidth, vh = viewport.clientHeight;
+  if (vw === 0 || vh === 0) { setTimeout(recentrerCarte, 100); return; }
+  if (vueActuelle === 'city') {
+    const capital = BATIMENTS_VILLE.find(b => b.capital) || BATIMENTS_VILLE[0];
+    panX = -(capital.x - vw / 2); panY = -(capital.y - vh / 2);
+  } else {
+    const monVillage = MARQUEURS_MONDE.find(m => m.type === 'mine-city');
+    panX = -((monVillage ? monVillage.x : 900) - vw / 2);
+    panY = -((monVillage ? monVillage.y : 900) - vh / 2);
+  }
+  clampPan(); appliquerPan();
+}
+
+// ==================== TIROIRS & MODALES ====================
+let tiroirOuvert = null;
+window.toggleTiroir = function(nom) {
+  if (nom === 'build') { afficherToast("Touche un bâtiment sur la carte pour l'améliorer 👆"); return; }
+  if (tiroirOuvert === nom) { fermerTiroir(); return; }
+  document.querySelectorAll('.drawer.open').forEach(d => d.classList.remove('open', 'slide-in'));
+  const drawer = document.getElementById('drawer-' + nom);
+  if (!drawer) return;
+  drawer.classList.add('open');
+  requestAnimationFrame(() => drawer.classList.add('slide-in'));
+  document.getElementById('drawer-backdrop').style.display = 'block';
+  tiroirOuvert = nom;
+  if (nom === 'baraques') creerListeTroupes();
+  if (nom === 'recruter') { afficherMesHeros(); afficherRecrutementHeros(); }
+  if (nom === 'rassemblement') creerRassemblement();
+  if (nom === 'forgeron') afficherForgeEquipement();
+  if (nom === 'alliance') afficherAlliance();
+  if (nom === 'articles') { afficherArticles(); afficherBoutiqueEquipement(); afficherQuetes(); }
+  if (nom === 'research') afficherRecherche();
+  if (nom === 'courrier') rendreCourrier();
+  if (nom === 'march') document.getElementById('marchList').innerHTML = `<p class="hint">Aucune armée en marche pour l'instant.</p>`;
+};
+window.fermerTiroir = function() {
+  document.querySelectorAll('.drawer.open').forEach(d => { d.classList.remove('slide-in'); setTimeout(() => d.classList.remove('open'), 280); });
+  document.getElementById('drawer-backdrop').style.display = 'none';
+  tiroirOuvert = null;
+};
+
+function creerListeTroupes() {
+  const box = document.getElementById('troupesList');
+  let html = '';
+  for (const [key, def] of Object.entries(DEFS_TROUPES)) {
+    html += `<div class="list-row"><i class="fas ${def.icon}"></i><div class="info"><h4>${def.nom} <span style="color:#6ee7b7">(${monProfil.troupes[key]||0})</span></h4><span>Pop ${def.population} · 🌾${def.cout.nourriture} 🪵${def.cout.bois} ⛓️${def.cout.fer}</span></div><button onclick="entrainer('${key}')">Entraîner</button></div>`;
+  }
+  box.innerHTML = html;
+}
+window.entrainer = async function(type) {
+  const def = DEFS_TROUPES[type];
+  const r = monProfil.ressources;
+  if (monProfil.populationInactive < def.population) { afficherToast("⛔ Population inactive insuffisante."); return; }
+  if (r.nourriture < def.cout.nourriture || r.bois < def.cout.bois || r.fer < def.cout.fer) { afficherToast("⛔ Ressources insuffisantes."); return; }
+  r.nourriture -= def.cout.nourriture; r.bois -= def.cout.bois; r.fer -= def.cout.fer;
+  monProfil.troupes[type] = (monProfil.troupes[type] || 0) + 1;
+  mettreAJourPopulation();
+  await sauvegarder({ ressources: r, troupes: monProfil.troupes });
+  majHUD(); creerListeTroupes();
+  afficherToast(`⚔️ 1 ${def.nom} entraîné !`);
+};
+
+function afficherMesHeros() {
+  const box = document.getElementById('mesHerosListe');
+  if (!box) return;
+  const heros = monProfil.heros || [];
+  if (heros.length === 0) { box.innerHTML = `<p class="hint">Aucun héros. Recrute-en un ci-dessous !</p>`; return; }
+  box.innerHTML = heros.map((h, i) => `<div class="item-card"><div class="info"><h4>${h.icon} ${h.nom} ${"⭐".repeat(h.etoiles)}${monProfil.meneurIndex === i ? ' <span style="color:var(--gold);">(Meneur)</span>' : ''}</h4><span>Att ${h.attaque} / Déf ${h.defense} — ${h.competence?.desc || ''}</span></div><button onclick="afficherPanelHeros(${i})" class="btn-sm" style="background:var(--gold);color:#0a061d;">Équiper</button>${monProfil.meneurIndex === i ? `<button onclick="retirerMeneur()" class="btn-sm">Retirer</button>` : `<button onclick="definirMeneur(${i})" class="btn-sm">Nommer meneur</button>`}</div>`).join('');
+}
+function afficherRecrutementHeros() {
+  const box = document.getElementById('recrutementHerosListe');
+  if (!box) return;
+  box.innerHTML = HEROS_RECRUTABLES.map((h, i) => `<div class="item-card"><div class="info"><h4>${h.icon} ${h.nom} ${"⭐".repeat(h.etoiles)}</h4><span>Att ${h.attaque} / Déf ${h.defense}</span></div><button onclick="recruterHeros(${i})" class="btn-sm" style="background:var(--gold);color:#0a061d;">${h.prix}🪙</button></div>`).join('');
+}
+window.recruterHeros = async function(index) {
+  const h = HEROS_RECRUTABLES[index];
+  if (monProfil.or < h.prix) { afficherToast("⛔ Pas assez d'or."); return; }
+  monProfil.or -= h.prix;
+  monProfil.heros = [...(monProfil.heros || []), { ...h }];
+  await sauvegarder({ or: monProfil.or, heros: monProfil.heros });
+  majHUD();
+  afficherMesHeros();
+  afficherToast(`${h.icon} ${h.nom} rejoint tes rangs !`);
+};
+window.definirMeneur = async function(index) {
+  monProfil.meneurIndex = index;
+  await sauvegarder({ meneurIndex: index });
+  afficherMesHeros(); majHUD();
+};
+window.retirerMeneur = async function() {
+  monProfil.meneurIndex = null;
+  await sauvegarder({ meneurIndex: null });
+  afficherMesHeros(); majHUD();
+};
+
+function creerRassemblement() {
+  const box = document.getElementById('rassemblementList');
+  let html = '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;">';
+  for (const [key, def] of Object.entries(DEFS_TROUPES)) {
+    html += `<div style="text-align:center;background:rgba(0,0,0,0.3);border:1px solid #3a2d63;border-radius:10px;padding:8px;"><i class="fas ${def.icon}" style="color:var(--gold);font-size:18px;"></i><div style="font-size:11px;margin-top:4px;">${def.nom}</div><div style="font-size:13px;font-weight:bold;color:#6ee7b7;">${monProfil.troupes[key]||0}</div></div>`;
+  }
+  html += '</div><button onclick="lancerRassemblement()" style="background:var(--gold);color:#0a061d;border:none;padding:12px;border-radius:10px;font-weight:bold;width:100%;cursor:pointer;">🚩 Lancer le rassemblement</button>';
+  box.innerHTML = html;
+}
+window.lancerRassemblement = function() {
+  const total = Object.values(monProfil.troupes).reduce((a, b) => a + b, 0);
+  if (total === 0) { afficherToast('⛔ Entraîne des troupes à la Caserne avant de rassembler.'); return; }
+  afficherToast(`🚩 Rassemblement lancé avec ${total} unités !`);
+  fermerTiroir();
+};
+
+// ==================== ALLIANCE ====================
+window.creerAlliance = async function() {
+  const nom = prompt("Nom de ta nouvelle alliance :");
+  if (!nom) return;
+  const snap = await getDoc(doc(db, COL_ALLIANCES, nom));
+  if (snap.exists()) { afficherToast("⛔ Cette alliance existe déjà."); return; }
+  await setDoc(doc(db, COL_ALLIANCES, nom), { nom, createur: monProfil.pseudo, membres: [monId] });
+  monProfil.allianceId = nom;
+  await sauvegarder({ allianceId: nom });
+  afficherAlliance();
+};
+window.rejoindreAllianceExistante = async function(nom) {
+  await updateDoc(doc(db, COL_ALLIANCES, nom), { membres: arrayUnion(monId) });
+  monProfil.allianceId = nom;
+  await sauvegarder({ allianceId: nom });
+  afficherAlliance();
+};
+window.quitterAlliance = async function() {
+  if (!monProfil.allianceId) return;
+  await updateDoc(doc(db, COL_ALLIANCES, monProfil.allianceId), { membres: arrayRemove(monId) });
+  monProfil.allianceId = null;
+  await sauvegarder({ allianceId: null });
+  afficherAlliance();
+};
+async function afficherAlliance() {
+  const box = document.getElementById('allianceContenu');
+  if (!box) return;
+  if (monProfil.allianceId) {
+    const snap = await getDoc(doc(db, COL_ALLIANCES, monProfil.allianceId));
+    if (!snap.exists()) { monProfil.allianceId = null; await sauvegarder({ allianceId: null }); afficherAlliance(); return; }
+    const a = snap.data();
+    box.innerHTML = `<h4>${a.nom} — ${(a.membres||[]).length} membre(s)</h4><button class="btn-purple" onclick="quitterAlliance()">🚪 Quitter</button>`;
+  } else {
+    const snap = await getDocs(collection(db, COL_ALLIANCES));
+    let listeHtml = "";
+    snap.forEach(d => { listeHtml += `<div class="item-card"><div class="info"><h4>${d.data().nom}</h4></div><button onclick="rejoindreAllianceExistante('${d.id}')" class="btn-sm">Rejoindre</button></div>`; });
+    box.innerHTML = `<button class="btn-gold" onclick="creerAlliance()">🆕 Fonder une alliance</button>${listeHtml || '<p>Aucune alliance</p>'}`;
+  }
+}
+
+// ==================== COURRIER ====================
+let _courrierRecus = {}, _courrierEnvoyes = {};
+function demarrerCourrier() {
+  onSnapshot(query(collection(db, COL_COURRIER), where("destinataireId", "==", monId)), (snap) => {
+    _courrierRecus = {}; snap.forEach(d => _courrierRecus[d.id] = { id: d.id, ...d.data() });
+    rendreCourrier();
+  });
+  onSnapshot(query(collection(db, COL_COURRIER), where("expediteurId", "==", monId)), (snap) => {
+    _courrierEnvoyes = {}; snap.forEach(d => _courrierEnvoyes[d.id] = { id: d.id, ...d.data() });
+    rendreCourrier();
+  });
+}
+function rendreCourrier() {
+  const box = document.getElementById('courrierListe');
+  const tous = [...Object.values(_courrierRecus), ...Object.values(_courrierEnvoyes)];
+  tous.sort((a, b) => (a.date?.toMillis?.() || 0) - (b.date?.toMillis?.() || 0));
+  if (box) box.innerHTML = tous.map(m => `<div class="mail-row"><b>${m.expediteurId === monId ? 'Toi → ' + (m.destinatairePseudo||'?') : m.expediteurPseudo + ' → toi'} :</b> ${m.texte}</div>`).join('') || `<p class="hint">Aucun message.</p>`;
+  const nonLus = Object.values(_courrierRecus).filter(m => !m.lu).length;
+  const badge = document.getElementById('badgeCourrier');
+  if (badge) { badge.style.display = nonLus > 0 ? 'flex' : 'none'; badge.innerText = nonLus; }
+}
+window.envoyerCourrier = async function() {
+  const destId = document.getElementById('destinataireCourrier').value;
+  const input = document.getElementById('courrierInput');
+  if (!destId || !input.value.trim()) return;
+  const destPseudo = _autresJoueurs.find(j => j.id === destId)?.pseudo || "?";
+  await addDoc(collection(db, COL_COURRIER), { expediteurId: monId, expediteurPseudo: monProfil.pseudo, destinataireId: destId, destinatairePseudo: destPseudo, texte: input.value.trim(), date: serverTimestamp(), lu: false });
+  input.value = "";
+};
+
+// ==================== ARTICLES ====================
+const ARTICLES = [
+  { id: "bouclier7j", nom: "🛡️ Bouclier 7 jours", desc: "Protège ta ville contre les attaques.", prix: 300 },
+  { id: "boostProd", nom: "⚡ Boost production x2 (24h)", desc: "Double ta production automatique.", prix: 250 },
+  { id: "sacRessources", nom: "📦 Sac de ressources", desc: "+200🪵 +200🪨 +100⛓️ immédiatement.", prix: 150 },
+  { id: "renommer", nom: "✏️ Renommer ta ville", desc: "Change le nom affiché de ta capitale.", prix: 100 }
+];
+function afficherArticles() {
+  const box = document.getElementById('articlesListe');
+  if (!box) return;
+  box.innerHTML = ARTICLES.map(a => `<div class="item-card"><div class="info"><h4>${a.nom}</h4><span>${a.desc}</span></div><button onclick="acheterArticle('${a.id}')" class="btn-sm" style="background:var(--gold);color:#0a061d;">${a.prix}🪙</button></div>`).join('');
+}
+window.acheterArticle = async function(id) {
+  const article = ARTICLES.find(a => a.id === id);
+  if (monProfil.or < article.prix) { afficherToast("⛔ Pas assez d'or."); return; }
+  monProfil.or -= article.prix;
+  if (id === "bouclier7j") monProfil.village = { ...(monProfil.village||{}), bouclierFin: Date.now() + 7*86400000 };
+  if (id === "boostProd") monProfil.boostProductionFin = Date.now() + 86400000;
+  if (id === "sacRessources") { monProfil.ressources.bois += 200; monProfil.ressources.pierre += 200; monProfil.ressources.fer += 100; }
+  if (id === "renommer") { const n = prompt("Nouveau nom de ta ville :", monProfil.nomVille || "Lyon"); if (n) monProfil.nomVille = n; else monProfil.or += article.prix; }
+  await sauvegarder({ or: monProfil.or, ressources: monProfil.ressources, boostProductionFin: monProfil.boostProductionFin, nomVille: monProfil.nomVille, village: monProfil.village });
+  majHUD();
+  afficherArticles();
+};
+
+// ==================== QUÊTES ====================
+const QUETES = [
+  { id: "q1", nom: "Premiers pas", desc: "Améliore un bâtiment au niveau 2.", objectif: "batiment", cible: 1, recompense: { or: 100, bois: 50 } },
+  { id: "q2", nom: "Chasseur débutant", desc: "Vaincs 3 monstres sur la carte.", objectif: "monstres", cible: 3, recompense: { or: 150, pierre: 80 } },
+  { id: "q3", nom: "Bûcheron en herbe", desc: "Collecte 200 de bois via la production.", objectif: "bois", cible: 200, recompense: { or: 200, fer: 30 } },
+  { id: "q4", nom: "Recruteur", desc: "Recrute ton premier héros.", objectif: "heros", cible: 1, recompense: { or: 300, hero: "Scribe" } },
+  { id: "q5", nom: "Conquérant", desc: "Capture un territoire sur la carte.", objectif: "territoire", cible: 1, recompense: { or: 500, prestige: 20 } }
+];
+function initialiserQuetesActives() {
+  if (Object.keys(monProfil.quetes.actives).length === 0) {
+    QUETES.forEach(q => {
+      if (!monProfil.quetes.terminees.includes(q.id)) {
+        monProfil.quetes.actives[q.id] = 0;
+      }
+    });
+  }
+}
+function verifierProgressionQuetes() {
+  let changement = false;
+  for (const quete of QUETES) {
+    if (monProfil.quetes.actives[quete.id] !== undefined) {
+      let avancement = 0;
+      switch (quete.objectif) {
+        case "batiment":
+          avancement = Object.values(monProfil.batiments).reduce((s, n) => Math.max(s, n), 0) - 1;
+          break;
+        case "monstres":
+          avancement = monProfil.quetes.actives[quete.id] || 0;
+          break;
+        case "bois":
+          avancement = monProfil.ressources.bois;
+          break;
+        case "heros":
+          avancement = monProfil.heros.length;
+          break;
+        case "territoire":
+          avancement = Object.values(_territoiresPossedes).filter(t => t.proprietaireId === monId).length;
+          break;
+      }
+      if (avancement >= quete.cible && avancement !== monProfil.quetes.actives[quete.id]) {
+        monProfil.quetes.actives[quete.id] = avancement;
+        terminerQuete(quete.id);
+        changement = true;
+      }
+    }
+  }
+  if (changement) sauvegarder({ quetes: monProfil.quetes, inventaireQuetes: monProfil.inventaireQuetes });
+}
+async function terminerQuete(id) {
+  const quete = QUETES.find(q => q.id === id);
+  if (!quete || monProfil.quetes.terminees.includes(id)) return;
+  monProfil.quetes.terminees.push(id);
+  delete monProfil.quetes.actives[id];
+  if (quete.recompense.or) monProfil.or += quete.recompense.or;
+  if (quete.recompense.bois) monProfil.ressources.bois += quete.recompense.bois;
+  if (quete.recompense.pierre) monProfil.ressources.pierre += quete.recompense.pierre;
+  if (quete.recompense.fer) monProfil.ressources.fer += quete.recompense.fer;
+  if (quete.recompense.prestige) monProfil.prestige += quete.recompense.prestige;
+  if (quete.recompense.hero) {
+    const h = HEROS_RECRUTABLES.find(x => x.nom === quete.recompense.hero);
+    if (h) monProfil.heros.push({ ...h });
+  }
+  afficherToast(`✅ Quête terminée : ${quete.nom} !`);
+  ajouterAuJournal(`✅ ${monProfil.pseudo} a terminé la quête "${quete.nom}".`);
+  majHUD();
+  afficherQuetes();
+}
+function afficherQuetes() {
+  const box = document.getElementById('quetesListe');
+  if (!box) return;
+  initialiserQuetesActives();
+  let html = "";
+  for (const q of QUETES) {
+    const statut = monProfil.quetes.terminees.includes(q.id) ? "✅ Terminée" : (monProfil.quetes.actives[q.id] !== undefined ? `En cours (${monProfil.quetes.actives[q.id]}/${q.cible})` : "Non débutée");
+    html += `<div class="strategie-row"><div class="info"><h4>${q.nom} <span style="color:#6ee7b7;">${statut}</span></h4><span>${q.desc}</span></div></div>`;
+  }
+  box.innerHTML = html;
+}
+
+// ==================== SÉNAT ====================
+function afficherSenat() {
+  mettreAJourPopulation();
+  const modal = document.getElementById('build-modal');
+  let html = `<h3>🏛️ Sénat</h3>`;
+  html += `<p>Population max : ${monProfil.populationMax}</p>`;
+  html += `<p>Active (production) : ${monProfil.populationActive}</p>`;
+  html += `<p>Militaire : ${monProfil.populationMilitaire}</p>`;
+  html += `<p>Inactive : ${monProfil.populationInactive}</p>`;
+  html += `<p>Taux production : N ${calculerTauxProduction().nourriture.toFixed(1)}/h, B ${calculerTauxProduction().bois.toFixed(1)}/h, P ${calculerTauxProduction().pierre.toFixed(1)}/h, F ${calculerTauxProduction().fer.toFixed(1)}/h</p>`;
+  html += `<p>Moral : ${monProfil.moral} / 100</p>`;
+  html += `<p>Impôts : ${monProfil.tauxImpots}% <button onclick="changerImpots(1)" class="btn-sm">+</button> <button onclick="changerImpots(-1)" class="btn-sm">-</button></p>`;
+  html += `<h4>Héros fonctionnaire</h4>`;
+  if (monProfil.heros.length > 0) {
+    monProfil.heros.forEach((h, i) => {
+      const actif = monProfil.herosFonctionnaireIndex === i;
+      html += `<button onclick="assignerFonctionnaire(${i})" class="btn-sm" style="${actif ? 'background:var(--gold);color:#0a061d;' : ''}">${h.icon} ${h.nom} ${actif ? '✔' : ''}</button> `;
+    });
+  } else {
+    html += `<p>Aucun héros disponible.</p>`;
+  }
+  html += `<button class="close-btn" onclick="fermerModal()">Fermer</button>`;
+  modal.innerHTML = html;
+  document.getElementById('build-modal-backdrop').style.display = 'flex';
+}
+window.changerImpots = async function(delta) {
+  monProfil.tauxImpots = Math.max(0, Math.min(50, monProfil.tauxImpots + delta));
+  await sauvegarder({ tauxImpots: monProfil.tauxImpots });
+  afficherSenat();
+};
+window.assignerFonctionnaire = async function(index) {
+  monProfil.herosFonctionnaireIndex = index;
+  await sauvegarder({ herosFonctionnaireIndex: index });
+  afficherSenat();
+};
+
+// ==================== MODAL CONSTRUCTION ====================
+let cibleActuelle = null;
+const COUTS_AMELIORATION = (niv) => ({ or: (niv+1)*80, bois: (niv+1)*20, pierre: (niv+1)*15 });
+window.ouvrirModal = function(id, nom, icon, img) {
+  if (id === 'senat') {
+    afficherSenat();
+    return;
+  }
+  cibleActuelle = id;
+  const niv = monProfil.batiments[id] || 1;
+  const cout = COUTS_AMELIORATION(niv);
+  const modal = document.getElementById('build-modal');
+  const visuel = img ? `<img src="${img}" style="width:84px;height:84px;object-fit:cover;border-radius:12px;border:2px solid var(--gold);margin:0 auto 8px;display:block;">` : `<i class="fas ${icon} modal-icon"></i>`;
+  modal.innerHTML = `${visuel}<h3>${nom}</h3><div class="modal-level">Niveau ${niv}</div><div class="modal-cost"><span>🪙 ${cout.or}</span><span>🪵 ${cout.bois}</span><span>🪨 ${cout.pierre}</span></div><button onclick="ameliorer()">Améliorer</button><button class="close-btn" onclick="fermerModal()">Fermer</button>`;
+  document.getElementById('build-modal-backdrop').style.display = 'flex';
+};
+window.fermerModal = function() { document.getElementById('build-modal-backdrop').style.display = 'none'; cibleActuelle = null; };
+window.ameliorer = async function() {
+  if (!cibleActuelle) return;
+  const niv = monProfil.batiments[cibleActuelle] || 1;
+  const cout = COUTS_AMELIORATION(niv);
+  const r = monProfil.ressources;
+  if (monProfil.or < cout.or) { afficherToast(`⛔ Il faut ${cout.or}🪙.`); return; }
+  if (r.bois < cout.bois) { afficherToast(`⛔ Il faut ${cout.bois}🪵.`); return; }
+  if (r.pierre < cout.pierre) { afficherToast(`⛔ Il faut ${cout.pierre}🪨.`); return; }
+  monProfil.or -= cout.or; r.bois -= cout.bois; r.pierre -= cout.pierre;
+  monProfil.batiments[cibleActuelle] = niv + 1;
+  await sauvegarder({ or: monProfil.or, ressources: r, batiments: monProfil.batiments });
+  mettreAJourPopulation();
+  majHUD(); rendreVilleCanvas(); fermerModal();
+  afficherGainFlottant(`🏗️ Niveau ${monProfil.batiments[cibleActuelle]} !`);
+  afficherToast(`🏗️ Niveau ${monProfil.batiments[cibleActuelle]} atteint !`);
+  verifierProgressionQuetes();
+};
+
+// ==================== MODALS DYNAMIQUES ====================
 function creerModalsDynamiques() {
-  // Modal équipement héros
   if (!document.getElementById('hero-equip-backdrop')) {
     const backdrop = document.createElement('div');
     backdrop.id = 'hero-equip-backdrop';
@@ -649,7 +1390,6 @@ function creerModalsDynamiques() {
     backdrop.appendChild(modal);
     document.getElementById('main-container').appendChild(backdrop);
   }
-  // Modal sélection héros attaque
   if (!document.getElementById('hero-attaque-backdrop')) {
     const backdrop = document.createElement('div');
     backdrop.id = 'hero-attaque-backdrop';
@@ -663,8 +1403,20 @@ function creerModalsDynamiques() {
   }
 }
 
+// ==================== ENTRER DANS LE JEU ====================
+let _autresJoueurs = [];
+async function chargerAutresJoueurs() {
+  const snap = await getDocs(collection(db, COL));
+  _autresJoueurs = [];
+  snap.forEach(d => { if (d.id !== monId) _autresJoueurs.push({ id: d.id, ...d.data() }); });
+}
+function positionJoueur(id) {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) % 100000;
+  return { x: 200 + (h % 1800), y: 200 + Math.floor(h / 1800) % 2400 };
+}
+
 async function entrerDansLeJeu() {
-  // Initialiser les champs manquants
   if (!monProfil.ressources) monProfil.ressources = { nourriture:800, bois:600, pierre:400, fer:200 };
   if (!monProfil.batiments) monProfil.batiments = batimentsParDefaut();
   if (!monProfil.troupes) monProfil.troupes = { fantassins:0, archers:0, cavaliers:0, cavaliersBlindes:0, balistes:0, trebuchets:0, piquiers:0, mages:0, golems:0, chevaliersNoirs:0, assassins:0, pretres:0 };
@@ -682,6 +1434,8 @@ async function entrerDansLeJeu() {
   if (!monProfil.inventaireQuetes) monProfil.inventaireQuetes = [];
   if (monProfil.moral === undefined) monProfil.moral = 80;
   if (monProfil.tauxImpots === undefined) monProfil.tauxImpots = 10;
+  if (monProfil.herosFonctionnaireIndex === undefined) monProfil.herosFonctionnaireIndex = null;
+  if (monProfil.heroAttaqueIndex === undefined) monProfil.heroAttaqueIndex = null;
 
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('game-ui').style.display = 'flex';
@@ -707,9 +1461,30 @@ async function entrerDansLeJeu() {
   afficherToast(`👑 Bienvenue, ${monProfil.pseudo} !`);
 }
 
+function demarrerParticules() {
+  const zone = document.getElementById('particules-container');
+  if (!zone) return;
+  setInterval(() => {
+    const p = document.createElement('div');
+    p.className = 'particule';
+    p.style.left = Math.random() * 100 + '%';
+    p.style.bottom = '0px';
+    p.style.animationDuration = (4 + Math.random() * 4) + 's';
+    zone.appendChild(p);
+    setTimeout(() => p.remove(), 8000);
+  }, 700);
+}
+
+window.basculerMusique = function() {
+  const audio = document.getElementById('bgMusic');
+  const icone = document.getElementById('musicIcon');
+  if (audio.paused) { audio.play().catch(() => {}); icone.className = 'fas fa-volume-up'; }
+  else { audio.pause(); icone.className = 'fas fa-volume-mute'; }
+};
+
 // ==================== RESTAURATION DE SESSION ====================
 const savedId = localStorage.getItem('lyon_id');
 if (savedId) {
   document.getElementById('codeInput').value = savedId;
   seConnecter();
-        }
+             }
