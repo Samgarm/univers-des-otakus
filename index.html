@@ -115,7 +115,16 @@
             <h4 style="color:var(--gold);margin-bottom:6px;">🛒 Boutique</h4>
             <div id="articlesListe"></div>
         </div>
-        <div id="drawer-recruter" class="drawer"><div class="drawer-handle"></div><h2>🎖️ Recruter</h2><p class="hint">Bientôt disponible.</p></div>
+        <div id="drawer-recruter" class="drawer">
+            <div class="drawer-handle"></div><h2>🎖️ Recruter des héros</h2>
+            <h4 style="color:var(--gold);margin-bottom:6px;">👤 Mes héros</h4>
+            <div id="mesHerosListe" style="margin-bottom:14px;"></div>
+            <h4 style="color:var(--gold);margin-bottom:6px;">✨ Recruter (1★ à 4★)</h4>
+            <div id="recrutementHerosListe" style="margin-bottom:14px;"></div>
+            <div class="item-card" style="border:1px solid var(--gold);">
+                <div class="info"><h4>🌟 Héros 5 étoiles</h4><span>Impossibles à recruter directement — capture-les en vainquant les grandes villes PNJ sur la carte du Monde.</span></div>
+            </div>
+        </div>
         <div id="drawer-artisanat" class="drawer"><div class="drawer-handle"></div><h2>⚒️ Artisanat</h2><p class="hint">Va à la Forge sur la carte pour fabriquer de l'équipement.</p></div>
         <div id="drawer-baraques" class="drawer"><div class="drawer-handle"></div><h2>⚔️ Caserne — Entraîner des troupes</h2><div id="troupesList"></div></div>
         <div id="drawer-rassemblement" class="drawer"><div class="drawer-handle"></div><h2>🚩 Camp de rassemblement</h2><p class="hint">Choisis tes troupes puis lance le rassemblement.</p><div id="rassemblementList"></div></div>
@@ -132,6 +141,27 @@
         <div id="drawer-journal" class="drawer"><div class="drawer-handle"></div><h2>📜 Journal du Monde</h2><div id="journalMessages" class="chat-scroll"></div></div>
 
         <div id="drawer-chat" class="drawer"><div class="drawer-handle"></div><h2>💬 Chat mondial</h2><div id="chatMessages" class="chat-scroll"></div><div class="chat-input-row"><input type="text" id="chatInput" class="input-premium" placeholder="Ton message..." style="margin:0;"><button onclick="envoyerMessageChat()" class="btn-gold" style="width:auto;margin:0;padding:10px 16px;"><i class="fas fa-paper-plane"></i></button></div></div>
+
+        <!-- 🆕 Panel de combat animé tour par tour (avatars + barres de vie) -->
+        <div id="combat-anime-backdrop" style="position:absolute;inset:0;z-index:70;display:none;background:rgba(0,0,0,0.85);align-items:center;justify-content:center;padding:16px;">
+            <div style="width:100%;max-width:420px;background:linear-gradient(180deg,#1a1440,#0a061d);border:2px solid var(--gold);border-radius:16px;padding:18px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+                    <div style="text-align:center;flex:1;">
+                        <div id="combatAvatarMoi" style="font-size:38px;"></div>
+                        <div id="combatNomMoi" style="font-weight:bold;font-size:12px;color:#fff;"></div>
+                        <div class="barre-vie-fight"><div id="combatPvMoi" class="vie-fill" style="width:100%;background:var(--green);"></div></div>
+                    </div>
+                    <div style="font-size:18px;color:var(--gold);font-weight:bold;">VS</div>
+                    <div style="text-align:center;flex:1;">
+                        <div id="combatAvatarAdv" style="font-size:38px;"></div>
+                        <div id="combatNomAdv" style="font-weight:bold;font-size:12px;color:#fff;"></div>
+                        <div class="barre-vie-fight"><div id="combatPvAdv" class="vie-fill" style="width:100%;background:var(--red);"></div></div>
+                    </div>
+                </div>
+                <div id="combatLogAnime" style="background:#000;border-radius:8px;padding:10px;margin-top:14px;font-size:12px;color:#e5e7eb;min-height:70px;max-height:140px;overflow-y:auto;white-space:pre-line;"></div>
+                <button onclick="passerCombat()" class="btn-secondary" style="width:100%;margin-top:12px;">⏩ Passer</button>
+            </div>
+        </div>
 
         <div id="build-modal-backdrop" onclick="if(event.target===this) fermerModal()"><div id="build-modal"></div></div>
 
@@ -195,3 +225,4 @@
 <script type="module" src="script.js"></script>
 </body>
 </html>
+
