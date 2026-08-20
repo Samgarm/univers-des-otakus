@@ -113,7 +113,10 @@
             <h4 style="color:var(--gold);margin-bottom:6px;">🎴 Mes stratégies</h4>
             <div id="mesStrategiesListe" style="margin-bottom:14px;"></div>
             <h4 style="color:var(--gold);margin-bottom:6px;">🛒 Boutique</h4>
-            <div id="articlesListe"></div>
+            <div id="articlesListe" style="margin-bottom:14px;"></div>
+            <h4 style="color:var(--gold);margin-bottom:6px;">⚔️ Équipement</h4>
+            <p id="equipementResume" style="font-size:11px;color:#9ca3af;margin-bottom:6px;"></p>
+            <div id="equipementBoutiqueListe"></div>
         </div>
         <div id="drawer-recruter" class="drawer">
             <div class="drawer-handle"></div><h2>🎖️ Recruter des héros</h2>
@@ -125,7 +128,7 @@
                 <div class="info"><h4>🌟 Héros 5 étoiles</h4><span>Impossibles à recruter directement — capture-les en vainquant les grandes villes PNJ sur la carte du Monde.</span></div>
             </div>
         </div>
-        <div id="drawer-artisanat" class="drawer"><div class="drawer-handle"></div><h2>⚒️ Artisanat</h2><p class="hint">Va à la Forge sur la carte pour fabriquer de l'équipement.</p></div>
+        <div id="drawer-artisanat" class="drawer"><div class="drawer-handle"></div><h2>⚒️ Artisanat</h2><p class="hint">L'équipement (arme, armure, casque, médaille, bottes) s'achète dans le tiroir Articles 🎒. Rassemble 3 pièces d'un même set pour un bonus, 5/5 pour l'effet maximal !</p><button class="btn-gold" onclick="toggleTiroir('articles')">🎒 Aller aux Articles</button></div>
         <div id="drawer-baraques" class="drawer"><div class="drawer-handle"></div><h2>⚔️ Caserne — Entraîner des troupes</h2><div id="troupesList"></div></div>
         <div id="drawer-rassemblement" class="drawer"><div class="drawer-handle"></div><h2>🚩 Camp de rassemblement</h2><p class="hint">Choisis tes troupes puis lance le rassemblement.</p><div id="rassemblementList"></div></div>
         <div id="drawer-forgeron" class="drawer"><div class="drawer-handle"></div><h2>🔨 Forge — Équipements</h2><div id="equipementList"></div></div>
@@ -137,10 +140,16 @@
         </div>
         <div id="drawer-march" class="drawer"><div class="drawer-handle"></div><h2>🐎 Armées en marche</h2><div id="marchList"></div></div>
         <div id="drawer-battle" class="drawer"><div class="drawer-handle"></div><h2>⚔️ Formations</h2><p class="hint">Organise tes troupes avant la bataille.</p></div>
-        <div id="drawer-research" class="drawer"><div class="drawer-handle"></div><h2>🧪 Recherche</h2><p class="hint">Bientôt disponible.</p></div>
+        <div id="drawer-research" class="drawer"><div class="drawer-handle"></div><h2>🧪 Recherche</h2><div id="rechercheListe"></div></div>
         <div id="drawer-journal" class="drawer"><div class="drawer-handle"></div><h2>📜 Journal du Monde</h2><div id="journalMessages" class="chat-scroll"></div></div>
 
         <div id="drawer-chat" class="drawer"><div class="drawer-handle"></div><h2>💬 Chat mondial</h2><div id="chatMessages" class="chat-scroll"></div><div class="chat-input-row"><input type="text" id="chatInput" class="input-premium" placeholder="Ton message..." style="margin:0;"><button onclick="envoyerMessageChat()" class="btn-gold" style="width:auto;margin:0;padding:10px 16px;"><i class="fas fa-paper-plane"></i></button></div></div>
+
+        <!-- 🆕 Déplacement des troupes avant le combat -->
+        <div id="deplacement-troupes-backdrop" style="position:absolute;inset:0;z-index:65;display:none;background:rgba(0,0,0,0.75);align-items:center;justify-content:center;flex-direction:column;gap:14px;">
+            <div id="deplacementIcone" style="font-size:34px;">🐎</div>
+            <p id="deplacementTexte" style="color:var(--gold);font-size:13px;text-align:center;padding:0 30px;"></p>
+        </div>
 
         <!-- 🆕 Panel de combat animé tour par tour (avatars + barres de vie) -->
         <div id="combat-anime-backdrop" style="position:absolute;inset:0;z-index:70;display:none;background:rgba(0,0,0,0.85);align-items:center;justify-content:center;padding:16px;">
@@ -225,4 +234,3 @@
 <script type="module" src="script.js"></script>
 </body>
 </html>
-
