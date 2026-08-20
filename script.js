@@ -27,6 +27,7 @@ function profilParDefaut(pseudo, codeRecup) {
         or: 500,
         allianceId: null, nomVille: "Lyon", prestige: 0,
         strategies: { mecontentement: 0, brusque: 0, contreOffensive: 0, faillite: 0 }, contreOffensifFin: null, malusProductionFin: null,
+        heros: [], meneurIndex: null,
         ressources: { nourriture: 800, bois: 600, pierre: 400, fer: 200 },
         batiments: batimentsParDefaut(),
         troupes: { fantassins:0, archers:0, cavaliers:0, cavaliersBlindes:0, balistes:0, trebuchets:0 },
@@ -152,6 +153,8 @@ const BATIMENTS_VILLE = [
 
 const MARQUEURS_MONDE = [
     { type: 'mine-city', nom: 'Toi', icon: 'fa-landmark', x: 900, y: 1020 },
+    { type: 'grande-ville', nom: 'Citadelle Oubliée', icon: 'fa-chess-rook', badge: 25, x: 1500, y: 400 },
+    { type: 'grande-ville', nom: 'Cité des Abysses', icon: 'fa-water', badge: 30, x: 300, y: 2200 },
     { type: 'camp', badge: 4, icon: 'fa-campground', x: 1080, y: 480 },
     { type: 'monster', badge: 15, icon: 'fa-elephant', x: 980, y: 880 },
     { type: 'monster', badge: 13, icon: 'fa-elephant', x: 1180, y: 780 },
@@ -171,7 +174,64 @@ const MARQUEURS_MONDE = [
     { type: 'res', id: 'terr8', nomtype: 'Marécage', ressourceType: 'fer', badge: 14, icon: 'fa-water', x: 1600, y: 900 }
 ];
 
-const DEFS_TROUPES = {
+// ==================== 🆕 HÉROS (1★ à 4★ recrutables, 5★ capturables uniquement) ====================
+const HEROS_RECRUTABLES = [
+    { nom: "Scribe", icon: "📜", etoiles: 1, attaque: 5, defense: 5, prix: 100 },
+    { nom: "Milicien", icon: "⚔️", etoiles: 1, attaque: 10, defense: 8, prix: 150 },
+    { nom: "Chevalier", icon: "🛡️", etoiles: 2, attaque: 25, defense: 20, prix: 400 },
+    { nom: "Archer d'Élite", icon: "🏹", etoiles: 2, attaque: 30, defense: 10, prix: 380 },
+    { nom: "Mage de Guerre", icon: "🔮", etoiles: 3, attaque: 50, defense: 15, prix: 900 },
+    { nom: "Paladin", icon: "⚜️", etoiles: 3, attaque: 35, defense: 45, prix: 1000 },
+    { nom: "Assassin Royal", icon: "🗡️", etoiles: 4, attaque: 90, defense: 10, prix: 2200 },
+    { nom: "Prêtresse", icon: "🌙", etoiles: 4, attaque: 20, defense: 70, prix: 2100 }
+];
+const HEROS_LEGENDAIRES = [
+    { nom: "Dragon d'Airain", icon: "🐉", etoiles: 5, attaque: 200, defense: 120 },
+    { nom: "Seigneur des Abysses", icon: "🌊", etoiles: 5, attaque: 150, defense: 180 },
+    { nom: "Phénix Immortel", icon: "🔥", etoiles: 5, attaque: 175, defense: 150 }
+];
+function afficherMesHeros() {
+    const box = document.getElementById('mesHerosListe');
+    if (!box) return;
+    const heros = monProfil.heros || [];
+    if (heros.length === 0) { box.innerHTML = `<p class="hint">Aucun héros. Recrute-en un ci-dessous !</p>`; return; }
+    box.innerHTML = heros.map((h, i) => `<div class="item-card"><div class="info"><h4>${h.icon} ${h.nom} ${"⭐".repeat(h.etoiles)}${monProfil.meneurIndex === i ? ' <span style="color:var(--gold);">(Meneur)</span>' : ''}</h4><span>Att ${h.attaque} / Déf ${h.defense}</span></div>${monProfil.meneurIndex === i ? `<button onclick="retirerMeneur()" class="btn-sm">Retirer</button>` : `<button onclick="definirMeneur(${i})" class="btn-sm" style="background:var(--gold);color:#0a061d;">Nommer meneur</button>`}</div>`).join('');
+}
+function afficherRecrutementHeros() {
+    const box = document.getElementById('recrutementHerosListe');
+    if (!box) return;
+    box.innerHTML = HEROS_RECRUTABLES.map((h, i) => `<div class="item-card"><div class="info"><h4>${h.icon} ${h.nom} ${"⭐".repeat(h.etoiles)}</h4><span>Att ${h.attaque} / Déf ${h.defense}</span></div><button onclick="recruterHeros(${i})" class="btn-sm" style="background:var(--gold);color:#0a061d;">${h.prix}🪙</button></div>`).join('');
+}
+window.recruterHeros = async function(index) {
+    const h = HEROS_RECRUTABLES[index];
+    if (monProfil.or < h.prix) { afficherToast("⛔ Pas assez d'or."); return; }
+    monProfil.or -= h.prix;
+    monProfil.heros = [...(monProfil.heros || []), { ...h }];
+    await sauvegarder({ or: monProfil.or, heros: monProfil.heros });
+    majHUD();
+    afficherGainFlottant(`${h.icon} +1 héros !`);
+    afficherToast(`${h.icon} ${h.nom} rejoint tes rangs !`);
+    afficherMesHeros();
+};
+window.definirMeneur = async function(index) {
+    monProfil.meneurIndex = index;
+    await sauvegarder({ meneurIndex: index });
+    afficherToast(`🎖️ ${monProfil.heros[index].nom} mène désormais tes campagnes militaires !`);
+    afficherMesHeros(); majHUD();
+};
+window.retirerMeneur = async function() {
+    monProfil.meneurIndex = null;
+    await sauvegarder({ meneurIndex: null });
+    afficherMesHeros(); majHUD();
+};
+// Bonus du héros meneur : s'ajoute directement à la force d'attaque et de défense
+function bonusMeneur(profil) {
+    if (profil.meneurIndex === null || profil.meneurIndex === undefined) return { attaque: 0, defense: 0 };
+    const h = (profil.heros || [])[profil.meneurIndex];
+    return h ? { attaque: h.attaque, defense: h.defense } : { attaque: 0, defense: 0 };
+}
+
+
     fantassins:      { nom: 'Fantassins',       icon: 'fa-shield',              attaque:6,  defense:9,  cout: { nourriture: 20, bois: 5,  fer: 0  } },
     archers:         { nom: 'Archers',          icon: 'fa-crosshairs',          attaque:10, defense:4,  cout: { nourriture: 25, bois: 15, fer: 5  } },
     cavaliers:       { nom: 'Cavaliers',        icon: 'fa-horse',               attaque:14, defense:7,  cout: { nourriture: 40, bois: 10, fer: 15 } },
@@ -269,7 +329,9 @@ window.lancerAttaque = async function() {
     const monAttaque = forceAttaque(monProfil);
 
     if (cibleAttaque.type === 'pnj') {
-        if (monAttaque >= cibleAttaque.force) {
+        const victoire = monAttaque >= cibleAttaque.force;
+        await animerCombat(monProfil.pseudo, monProfil.avatar, cibleAttaque.nom, '👹', victoire);
+        if (victoire) {
             const butinOr = 20 + Math.floor(cibleAttaque.force * 0.2);
             const butinBois = Math.floor(cibleAttaque.force * 0.3);
             const butinPierre = Math.floor(cibleAttaque.force * 0.25);
@@ -281,6 +343,16 @@ window.lancerAttaque = async function() {
             afficherGainFlottant(`🏆 +${butinBois}🪵 +${butinPierre}🪨`);
             afficherToast(`🏆 Victoire contre ${cibleAttaque.nom} ! +${butinOr}🪙 +${butinBois}🪵 +${butinPierre}🪨 +${butinFer}⛓️`);
             ajouterAuJournal(`⚔️ ${monProfil.pseudo} a vaincu ${cibleAttaque.nom} et récupéré des matériaux !`);
+            // 🆕 Capture d'un héros 5 étoiles en vainquant une grande ville PNJ (chance ~35%)
+            if (cibleAttaque.grandeVille && Math.random() < 0.35) {
+                const heroCapture = HEROS_LEGENDAIRES[Math.floor(Math.random() * HEROS_LEGENDAIRES.length)];
+                monProfil.heros = [...(monProfil.heros || []), { ...heroCapture }];
+                await sauvegarder({ heros: monProfil.heros });
+                afficherToast(`🌟 Tu as capturé ${heroCapture.icon} ${heroCapture.nom} (5★) !`);
+                ajouterAuJournal(`🌟 ${monProfil.pseudo} a capturé le légendaire ${heroCapture.nom} à ${cibleAttaque.nom} !`);
+            } else if (cibleAttaque.grandeVille) {
+                afficherToast(`Cette fois, aucun héros légendaire n'a été trouvé... retente ta chance !`);
+            }
         } else {
             const pertes = reduireTroupes(monProfil.troupes, 0.15);
             await sauvegarder({ troupes: monProfil.troupes });
@@ -313,8 +385,10 @@ window.lancerAttaque = async function() {
         noteStrategie += " 🛡️ Le défenseur avait une Contre-Offensive active (-20% à ton attaque) !";
     }
     const sonDefense = forceDefense(defenseur);
+    const victoire = monAttaqueFinale * (0.85 + Math.random() * 0.3) >= sonDefense;
+    await animerCombat(monProfil.pseudo, monProfil.avatar, defenseur.pseudo, defenseur.avatar || '🏰', victoire);
 
-    if (monAttaqueFinale * (0.85 + Math.random() * 0.3) >= sonDefense) {
+    if (victoire) {
         // 🆕 Faillite Temporelle du défenseur : annule entièrement les pertes, comme si l'attaque n'avait jamais eu lieu
         if ((defenseur.strategies?.faillite || 0) > 0) {
             defenseur.strategies.faillite -= 1;
@@ -358,6 +432,49 @@ function reduireTroupes(troupes, ratio) {
     });
     return perdues;
 }
+
+// ==================== 🆕 COMBAT ANIMÉ TOUR PAR TOUR ====================
+// Le vainqueur est déjà déterminé par le calcul de force (fait avant l'appel) — l'animation ne fait que le mettre en scène,
+// avec quelques rounds visuels où les barres de vie descendent, avant de révéler le résultat.
+let _combatAnimeResolve = null;
+function animerCombat(nomMoi, avatarMoi, nomAdv, avatarAdv, victoire) {
+    return new Promise((resolve) => {
+        _combatAnimeResolve = resolve;
+        document.getElementById('combatAvatarMoi').innerText = avatarMoi || '⚔️';
+        document.getElementById('combatAvatarAdv').innerText = avatarAdv || '👹';
+        document.getElementById('combatNomMoi').innerText = nomMoi;
+        document.getElementById('combatNomAdv').innerText = nomAdv;
+        const barMoi = document.getElementById('combatPvMoi'), barAdv = document.getElementById('combatPvAdv');
+        const log = document.getElementById('combatLogAnime');
+        barMoi.style.width = '100%'; barAdv.style.width = '100%';
+        log.innerText = "⚔️ Le combat commence...";
+        document.getElementById('combat-anime-backdrop').style.display = 'flex';
+
+        let pvMoi = 100, pvAdv = 100, round = 0;
+        const totalRounds = 5;
+        const interval = setInterval(() => {
+            round++;
+            // Le camp destiné à perdre encaisse plus de dégâts, mais chaque round reste incertain visuellement
+            const degatsMoi = victoire ? (8 + Math.random() * 10) : (18 + Math.random() * 12);
+            const degatsAdv = victoire ? (18 + Math.random() * 12) : (8 + Math.random() * 10);
+            pvAdv = Math.max(round === totalRounds && victoire ? 0 : 5, pvAdv - degatsMoi);
+            pvMoi = Math.max(round === totalRounds && !victoire ? 0 : 5, pvMoi - degatsAdv);
+            barMoi.style.width = pvMoi + '%'; barAdv.style.width = pvAdv + '%';
+            log.innerText += `\nRound ${round} : tu infliges ${Math.round(degatsMoi)}, tu subis ${Math.round(degatsAdv)}.`;
+            log.scrollTop = log.scrollHeight;
+            if (round >= totalRounds) {
+                clearInterval(interval);
+                log.innerText += victoire ? "\n\n🏆 Victoire !" : "\n\n💀 Défaite...";
+                setTimeout(() => terminerCombatAnime(), 900);
+            }
+        }, 700);
+    });
+}
+function terminerCombatAnime() {
+    document.getElementById('combat-anime-backdrop').style.display = 'none';
+    if (_combatAnimeResolve) { _combatAnimeResolve(); _combatAnimeResolve = null; }
+}
+window.passerCombat = function() { terminerCombatAnime(); };
 
 function afficherToast(msg) {
     const t = document.getElementById('toast');
@@ -467,12 +584,12 @@ window.utiliserMecontentement = async function(idCible, pseudoCible) {
 
 // ==================== 🆕 COMBAT RÉEL ENTRE JOUEURS ====================
 function forceAttaque(profil) {
-    return Object.entries(profil.troupes || {}).reduce((s, [k, n]) => s + n * (DEFS_TROUPES[k]?.attaque || 0), 0);
+    return Object.entries(profil.troupes || {}).reduce((s, [k, n]) => s + n * (DEFS_TROUPES[k]?.attaque || 0), 0) + bonusMeneur(profil).attaque;
 }
 function forceDefense(profil) {
     const base = Object.entries(profil.troupes || {}).reduce((s, [k, n]) => s + n * (DEFS_TROUPES[k]?.defense || 0), 0);
     const niveauMirador = profil.batiments?.mirador || 0;
-    return base + niveauMirador * 10;
+    return base + niveauMirador * 10 + bonusMeneur(profil).defense;
 }
 // Positionne les autres joueurs sur la carte du monde (position stable, dérivée de leur ID)
 function positionJoueur(id) {
@@ -512,7 +629,8 @@ function calculerPuissanceDe(profil) {
     const niveauBatiments = Object.values(profil.batiments || {}).reduce((s, n) => s + n, 0);
     const nbTroupes = Object.values(profil.troupes || {}).reduce((s, n) => s + n, 0);
     const nbEquipement = Object.values(profil.equipement || {}).reduce((s, n) => s + n, 0);
-    return niveauBatiments * 25 + nbTroupes * 8 + nbEquipement * 40 + Math.floor((profil.or || 0) / 10);
+    const scoreHeros = (profil.heros || []).reduce((s, h) => s + h.etoiles * 30, 0);
+    return niveauBatiments * 25 + nbTroupes * 8 + nbEquipement * 40 + scoreHeros + Math.floor((profil.or || 0) / 10);
 }
 function calculerPuissance() { return calculerPuissanceDe(monProfil); }
 
@@ -608,7 +726,11 @@ window.attaquerTerritoire = async function(id) {
     if (!info || !info.proprietaireId) { seuil = t.badge * 70; }
     else { const propSnap = await getDoc(doc(db, COL, info.proprietaireId)); seuil = forceDefense(propSnap.data()); }
 
-    if (monAttaque * (0.85 + Math.random() * 0.3) >= seuil) {
+    const deco = ICONES_TERRITOIRE[t.nomtype] || { emoji: '🗺️' };
+    const victoire = monAttaque * (0.85 + Math.random() * 0.3) >= seuil;
+    await animerCombat(monProfil.pseudo, monProfil.avatar, t.nomtype, deco.emoji, victoire);
+
+    if (victoire) {
         const nouvInfo = { proprietaireId: monId, proprietairePseudo: monProfil.pseudo, dernierCalcul: Date.now() };
         await setDoc(doc(db, COL_TERRITOIRES, id), nouvInfo);
         _territoiresPossedes[id] = nouvInfo;
@@ -652,9 +774,12 @@ function rendreMondeCanvas() {
             if (m.type === 'mine-city') { allerVue('city'); afficherToast('🏛️ Entrée dans ta ville'); return; }
             if (m.type === 'monster') { ouvrirAttaque({ type: 'pnj', nom: 'le monstre niv.' + m.badge, force: m.badge * 60 }); return; }
             if (m.type === 'camp') { ouvrirAttaque({ type: 'pnj', nom: 'le campement niv.' + m.badge, force: m.badge * 50 }); return; }
+            if (m.type === 'grande-ville') { ouvrirAttaque({ type: 'pnj', nom: m.nom, force: m.badge * 80, grandeVille: true }); return; }
         };
         if (m.type === 'mine-city') {
             el.innerHTML = `<i class="fas ${m.icon} wmarker-icon mine-city"></i><div class="wmarker-label">${m.nom}</div>`;
+        } else if (m.type === 'grande-ville') {
+            el.innerHTML = `<div class="wmarker-badge monster" style="background:#7c3aed;">${m.badge}</div><i class="fas ${m.icon} wmarker-icon" style="color:var(--gold);text-shadow:0 0 8px var(--gold);"></i><div class="wmarker-label">🌟 ${m.nom}</div>`;
         } else {
             const iconColor = '#f87171';
             el.innerHTML = `<div class="wmarker-badge monster">${m.badge}</div><i class="fas ${m.icon} wmarker-icon" style="color:${iconColor}"></i>`;
@@ -770,6 +895,7 @@ window.toggleTiroir = function(nom) {
     document.getElementById('drawer-backdrop').style.display = 'block';
     tiroirOuvert = nom;
     if (nom === 'baraques') creerListeTroupes();
+    if (nom === 'recruter') { afficherMesHeros(); afficherRecrutementHeros(); }
     if (nom === 'rassemblement') creerRassemblement();
     if (nom === 'forgeron') creerListeEquipement();
     if (nom === 'alliance') afficherAlliance();
@@ -962,6 +1088,8 @@ async function entrerDansLeJeu() {
     if (!monProfil.nomVille) monProfil.nomVille = "Lyon";
     if (monProfil.allianceId === undefined) monProfil.allianceId = null;
     if (!monProfil.strategies) monProfil.strategies = { mecontentement: 0, brusque: 0 };
+    if (!monProfil.heros) monProfil.heros = [];
+    if (monProfil.meneurIndex === undefined) monProfil.meneurIndex = null;
     if (monProfil.prestige === undefined) monProfil.prestige = 0;
 
     document.getElementById('login-screen').style.display = 'none';
@@ -989,3 +1117,4 @@ if (savedId) {
     document.getElementById('codeInput').value = savedId;
     seConnecter();
 }
+
