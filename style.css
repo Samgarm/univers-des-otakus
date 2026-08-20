@@ -1,4 +1,4 @@
-:root { --gold: #fbbf24; --bg-dark: #0a061d; --purple: #4c1d95; --ribbon: #7a1f1f; }
+:root { --gold: #fbbf24; --bg-dark: #0a061d; --purple: #4c1d95; --ribbon: #7a1f1f; --green: #22c55e; --red: #dc2626; }
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; -webkit-tap-highlight-color: transparent; user-select: none; }
     body { background: var(--bg-dark); color: #f1f5f9; overflow: hidden; height: 100vh; width: 100vw; }
 
@@ -176,6 +176,10 @@
     /* ===================== 🆕 LISTE DE STRATÉGIES ===================== */
     .strategie-row { display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.3); border: 1px solid #3a2d63; border-radius: 10px; padding: 8px 10px; margin-bottom: 6px; }
     .strategie-row .info h4 { font-size: 12.5px; color: #fff; } .strategie-row .info span { font-size: 10.5px; color: #9ca3af; }
+
+    /* ===================== 🆕 COMBAT ANIMÉ ===================== */
+    .barre-vie-fight { height: 12px; background: #333; border-radius: 6px; margin-top: 5px; overflow: hidden; }
+    .vie-fill { height: 100%; border-radius: 6px; transition: width 0.6s ease; }
 
     /* ===================== 🆕 CHAT MONDIAL ===================== */
     .chat-scroll { max-height: 300px; overflow-y: auto; background: rgba(0,0,0,0.3); border-radius: 12px; padding: 10px; margin-bottom: 10px; }
