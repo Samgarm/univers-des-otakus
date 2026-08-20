@@ -2,7 +2,6 @@
 * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; -webkit-tap-highlight-color: transparent; user-select: none; }
 body { background: var(--bg-dark); color: #f1f5f9; overflow: hidden; height: 100vh; width: 100vw; }
 
-/* ===================== CONNEXION ===================== */
 #login-screen { position: absolute; inset: 0; background: url('https://i.postimg.cc/QMc3tBWN/IMG-20260812-WA0041.jpg') no-repeat center center; background-size: cover; display: flex; align-items: center; justify-content: center; z-index: 1000; }
 .auth-overlay { background: rgba(0,0,0,0.45); padding: 24px 26px; border-radius: 16px; width: 85%; max-width: 280px; text-align: center; border: 1px solid rgba(251,191,36,0.3); backdrop-filter: blur(3px); }
 .auth-overlay h1, .auth-overlay h2 { color: var(--gold); margin-bottom: 10px; }
@@ -14,7 +13,6 @@ body { background: var(--bg-dark); color: #f1f5f9; overflow: hidden; height: 100
 .auth-links { display:flex; justify-content:space-around; margin-top:12px; font-size:12px; color:var(--gold); }
 .auth-links span { cursor:pointer; }
 
-/* ===================== GAME UI ===================== */
 #game-ui { display: none; flex-direction: column; height: 100vh; width: 100vw; }
 #top-hud { background: rgba(10,6,20,0.92); border-bottom: 2px solid var(--gold); z-index: 40; flex-shrink: 0; }
 .hud-player-row { display: flex; align-items: center; gap: 8px; padding: 6px 8px 4px; }
@@ -29,7 +27,6 @@ body { background: var(--bg-dark); color: #f1f5f9; overflow: hidden; height: 100
 .res-chip.food i { color: #eab308; } .res-chip.wood i { color: #a16207; } .res-chip.stone i { color: #9ca3af; } .res-chip.iron i { color: #cbd5e1; }
 .hud-ticker { background: rgba(251,191,36,0.1); border-top: 1px solid rgba(251,191,36,0.25); font-size: 10.5px; color: #fde68a; padding: 4px 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-/* ===================== CARTE ===================== */
 #main-container { flex: 1; position: relative; overflow: hidden; background:#0d0a1a; }
 #map-viewport { position: absolute; inset: 0; overflow: hidden; touch-action: none; cursor: grab; }
 #map-canvas { position: absolute; top: 0; left: 0; will-change: transform; }
@@ -42,7 +39,32 @@ body { background: var(--bg-dark); color: #f1f5f9; overflow: hidden; height: 100
 .marker-ribbon { margin-top: 2px; background: linear-gradient(180deg,#3f2a12,#241708); border: 1px solid #b8863f; color: #fde68a; font-size: 10px; font-weight: bold; padding: 2px 8px; border-radius: 4px; white-space: nowrap; }
 .marker.capital .marker-icon { border-color: var(--gold); box-shadow: 0 0 14px rgba(251,191,36,0.6); }
 
-/* Tiroirs */
+.wmarker { position: absolute; transform: translate(-50%, -100%); display: flex; flex-direction: column; align-items: center; cursor: pointer; }
+.wmarker-badge { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: bold; color: #fff; border: 1px solid rgba(255,255,255,0.4); margin-bottom: 2px; }
+.wmarker-badge.monster { background: #7f1d1d; }
+.wmarker-icon { font-size: 20px; }
+.wmarker-icon.mine-city { color: var(--gold); text-shadow: 0 0 8px var(--gold); }
+.wmarker-label { font-size: 8.5px; color: #fff; background: rgba(0,0,0,0.55); padding: 1px 4px; border-radius: 3px; margin-top: 1px; }
+
+.territoire-marker { position: absolute; display: flex; flex-direction: column; align-items: center; cursor: pointer; }
+.territoire-icone { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; border: 2px solid rgba(255,255,255,0.3); box-shadow: 0 4px 6px rgba(0,0,0,0.5); }
+.territoire-icone.foret { background: radial-gradient(circle,#166534,#052e16); }
+.territoire-icone.montagne { background: radial-gradient(circle,#78716c,#292524); }
+.territoire-icone.marecage { background: radial-gradient(circle,#0d9488,#042f2e); }
+.territoire-icone.possede-moi { border-color: var(--gold); box-shadow: 0 0 10px rgba(251,191,36,0.7); }
+.territoire-icone.possede-autre { border-color: #f87171; }
+.territoire-label { margin-top: 2px; font-size: 8.5px; color: #fff; background: rgba(0,0,0,0.55); padding: 1px 5px; border-radius: 3px; }
+
+#advisor { position: absolute; top: 8px; left: 8px; right: 8px; z-index: 35; display: none; align-items: flex-start; gap: 8px; }
+#advisor.show { display: flex; }
+.advisor-portrait { width: 46px; height: 46px; border-radius: 50%; border: 2px solid var(--gold); background: radial-gradient(circle at 35% 30%, #c084fc, #4c1d95); flex-shrink: 0; display:flex; align-items:center; justify-content:center; }
+.advisor-portrait i { color: #fff; font-size: 20px; }
+.advisor-bubble { background: rgba(20,14,40,0.92); border: 1px solid var(--gold); border-radius: 10px; padding: 8px 10px; font-size: 11.5px; color: #f1f5f9; flex: 1; position: relative; }
+.advisor-close { position: absolute; top: 2px; right: 6px; color: #9ca3af; font-size: 12px; cursor: pointer; }
+
+#recenter-btn { position: absolute; bottom: 14px; right: 14px; z-index: 35; width: 42px; height: 42px; border-radius: 50%; background: rgba(10,6,20,0.85); border: 2px solid var(--gold); display: flex; align-items: center; justify-content: center; }
+#recenter-btn i { color: var(--gold); font-size: 16px; }
+
 .drawer { position: absolute; left: 0; right: 0; bottom: 0; z-index: 50; max-height: 70%; background: linear-gradient(180deg, rgba(26,20,64,0.9), rgba(10,6,29,0.98)); border-top: 2px solid var(--gold); border-radius: 20px 20px 0 0; padding: 16px 16px 24px; overflow-y: auto; transform: translateY(100%); transition: transform 0.28s ease-out; backdrop-filter: blur(6px); display: none; }
 .drawer.open { display: block; }
 .drawer.slide-in { transform: translateY(0); }
@@ -53,7 +75,6 @@ body { background: var(--bg-dark); color: #f1f5f9; overflow: hidden; height: 100
 .list-row .info { flex: 1; } .list-row .info h4 { font-size: 13px; } .list-row .info span { font-size: 11px; color: #9ca3af; }
 .list-row button { background: var(--gold); color: #0a061d; border: none; padding: 6px 12px; border-radius: 8px; font-weight: bold; font-size: 11px; }
 
-/* Modales */
 #build-modal-backdrop { position: absolute; inset: 0; z-index: 60; display: none; background: rgba(0,0,0,0.55); align-items: flex-end; justify-content: center; }
 #build-modal { width: 100%; max-width: 480px; background: linear-gradient(180deg,#1a1440,#0a061d); border-top: 2px solid var(--gold); border-radius: 18px 18px 0 0; padding: 20px; text-align: center; animation: slideUp .25s ease-out; }
 @keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
@@ -64,36 +85,29 @@ body { background: var(--bg-dark); color: #f1f5f9; overflow: hidden; height: 100
 #build-modal button { background: var(--gold); color: #0a061d; border: none; padding: 12px; border-radius: 10px; font-weight: bold; width: 100%; cursor: pointer; font-size: 14px; }
 #build-modal .close-btn { background: transparent; color: #9ca3af; margin-top: 8px; padding: 6px; font-weight: normal; font-size: 12px; }
 
-/* Styles pour les nouveaux modales (héros équipement et sélection) sont injectés en JS, mais on peut les prévoir */
 #hero-equip-backdrop, #hero-attaque-backdrop { position:absolute; inset:0; z-index:75; background:rgba(0,0,0,0.55); align-items:flex-end; justify-content:center; }
 #hero-equip-modal, #hero-attaque-modal { width:100%; max-width:480px; background:linear-gradient(180deg,#1a1440,#0a061d); border-top:2px solid var(--gold); border-radius:18px 18px 0 0; padding:20px; text-align:center; }
 
-/* Boutons */
 .btn-sm { background:var(--gold); color:#0a061d; border:none; padding:6px 12px; border-radius:8px; font-weight:bold; font-size:11px; cursor:pointer; }
 .btn-secondary { background:rgba(255,255,255,0.1); color:var(--gold); border:1px solid var(--gold); padding:8px; border-radius:8px; cursor:pointer; }
 
-/* Chat etc. */
 .chat-scroll { max-height: 300px; overflow-y: auto; background: rgba(0,0,0,0.3); border-radius: 12px; padding: 10px; margin-bottom: 10px; }
 .chat-msg { font-size: 12.5px; color: #e5e7eb; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
 .chat-msg b { color: var(--gold); }
 .chat-input-row { display: flex; gap: 8px; }
 .chat-input-row input { flex: 1; }
 
-/* Gains flottants */
 #gains-flottants { position: absolute; top: 60px; left: 0; right: 0; z-index: 200; pointer-events: none; display: flex; justify-content: center; }
 .gain-flottant { position: absolute; color: var(--gold); font-weight: bold; font-size: 15px; text-shadow: 0 2px 6px rgba(0,0,0,0.9); animation: monterEtDisparaitre 1.4s ease-out forwards; }
 @keyframes monterEtDisparaitre { 0% { transform: translateY(0); opacity: 1; } 100% { transform: translateY(-40px); opacity: 0; } }
 
-/* Overlay chargement */
 #loading-overlay { position: fixed; inset: 0; background: var(--bg-dark); z-index: 1500; display: none; align-items: center; justify-content: center; flex-direction: column; gap: 14px; }
 #loading-overlay.show { display: flex; }
 .loading-spinner { width: 40px; height: 40px; border: 3px solid rgba(251,191,36,0.25); border-top-color: var(--gold); border-radius: 50%; animation: tourner 0.8s linear infinite; }
 @keyframes tourner { to { transform: rotate(360deg); } }
 
-/* Particules */
 .particule { position: absolute; width: 3px; height: 3px; background: var(--gold); border-radius: 50%; opacity: 0; box-shadow: 0 0 6px var(--gold); animation: flotterParticule linear infinite; }
 @keyframes flotterParticule { 0% { transform: translateY(0); opacity: 0; } 10% { opacity: 0.8; } 90% { opacity: 0.5; } 100% { transform: translateY(-120px); opacity: 0; } }
 
-/* Music toggle */
 #music-toggle { position: absolute; top: 8px; right: 8px; z-index: 36; width: 34px; height: 34px; border-radius: 50%; background: rgba(10,6,20,0.85); border: 2px solid var(--gold); display: flex; align-items: center; justify-content: center; }
 #music-toggle i { color: var(--gold); font-size: 14px; }
