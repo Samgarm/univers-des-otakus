@@ -62,7 +62,7 @@
             <div class="avatar-box" id="avatarBox">👑</div>
             <div class="player-info">
                 <div class="pname" id="pnameAffiche">Guerrier</div>
-                <div class="prank">⚡ Puissance : <span id="puissanceAffiche">0</span></div>
+                <div class="prank">⚡ Puissance : <span id="puissanceAffiche">0</span> · 🏆 <span id="prestigeAffiche">0</span></div>
             </div>
             <div class="city-badge">
                 <div class="cname" id="hudCityName">Lyon</div>
@@ -109,7 +109,12 @@
             <div class="chat-input-row"><input type="text" id="courrierInput" class="input-premium" placeholder="Ton message..." style="margin:0;"><button onclick="envoyerCourrier()" class="btn-gold" style="width:auto;margin:0;padding:10px 16px;"><i class="fas fa-paper-plane"></i></button></div>
             <div id="courrierListe" class="chat-scroll" style="margin-top:10px;"></div>
         </div>
-        <div id="drawer-articles" class="drawer"><div class="drawer-handle"></div><h2>🎒 Articles</h2><div id="articlesListe"></div></div>
+        <div id="drawer-articles" class="drawer"><div class="drawer-handle"></div><h2>🎒 Articles</h2>
+            <h4 style="color:var(--gold);margin-bottom:6px;">🎴 Mes stratégies</h4>
+            <div id="mesStrategiesListe" style="margin-bottom:14px;"></div>
+            <h4 style="color:var(--gold);margin-bottom:6px;">🛒 Boutique</h4>
+            <div id="articlesListe"></div>
+        </div>
         <div id="drawer-recruter" class="drawer"><div class="drawer-handle"></div><h2>🎖️ Recruter</h2><p class="hint">Bientôt disponible.</p></div>
         <div id="drawer-artisanat" class="drawer"><div class="drawer-handle"></div><h2>⚒️ Artisanat</h2><p class="hint">Va à la Forge sur la carte pour fabriquer de l'équipement.</p></div>
         <div id="drawer-baraques" class="drawer"><div class="drawer-handle"></div><h2>⚔️ Caserne — Entraîner des troupes</h2><div id="troupesList"></div></div>
@@ -129,6 +134,16 @@
         <div id="drawer-chat" class="drawer"><div class="drawer-handle"></div><h2>💬 Chat mondial</h2><div id="chatMessages" class="chat-scroll"></div><div class="chat-input-row"><input type="text" id="chatInput" class="input-premium" placeholder="Ton message..." style="margin:0;"><button onclick="envoyerMessageChat()" class="btn-gold" style="width:auto;margin:0;padding:10px 16px;"><i class="fas fa-paper-plane"></i></button></div></div>
 
         <div id="build-modal-backdrop" onclick="if(event.target===this) fermerModal()"><div id="build-modal"></div></div>
+
+        <!-- 🆕 Panel de profil d'une ville adverse : puissance, prestige, espionnage, attaque -->
+        <div id="profil-ville-backdrop" onclick="if(event.target===this) fermerProfilVille()" style="position:absolute;inset:0;z-index:60;display:none;background:rgba(0,0,0,0.55);align-items:flex-end;justify-content:center;">
+            <div id="profil-ville-modal" style="width:100%;max-width:480px;background:linear-gradient(180deg,#1a1440,#0a061d);border-top:2px solid var(--gold);border-radius:18px 18px 0 0;padding:20px;text-align:center;"></div>
+        </div>
+
+        <!-- 🆕 Panel de profil d'un territoire (marécage/forêt/montagne) -->
+        <div id="profil-territoire-backdrop" onclick="if(event.target===this) fermerProfilTerritoire()" style="position:absolute;inset:0;z-index:60;display:none;background:rgba(0,0,0,0.55);align-items:flex-end;justify-content:center;">
+            <div id="profil-territoire-modal" style="width:100%;max-width:480px;background:linear-gradient(180deg,#1a1440,#0a061d);border-top:2px solid var(--gold);border-radius:18px 18px 0 0;padding:20px;text-align:center;"></div>
+        </div>
     </div>
 
     <!-- ================= ACTIONS RAPIDES ================= -->
@@ -180,4 +195,3 @@
 <script type="module" src="script.js"></script>
 </body>
 </html>
-
