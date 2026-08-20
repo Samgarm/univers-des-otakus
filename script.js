@@ -27,7 +27,7 @@ function profilParDefaut(pseudo, codeRecup) {
         or: 500,
         allianceId: null, nomVille: "Lyon", prestige: 0,
         strategies: { mecontentement: 0, brusque: 0, contreOffensive: 0, faillite: 0 }, contreOffensifFin: null, malusProductionFin: null,
-        heros: [], meneurIndex: null,
+        heros: [], meneurIndex: null, inventaireEquipement: [], recherches: {},
         ressources: { nourriture: 800, bois: 600, pierre: 400, fer: 200 },
         batiments: batimentsParDefaut(),
         troupes: { fantassins:0, archers:0, cavaliers:0, cavaliersBlindes:0, balistes:0, trebuchets:0 },
@@ -101,7 +101,7 @@ async function calculerProductionAutomatique() {
     const boostActif = (p.boostProductionFin && p.boostProductionFin > Date.now());
     const malusActif = (p.malusProductionFin && p.malusProductionFin > Date.now());
     const multiplicateur = (boostActif ? 2 : 1) * (malusActif ? 0.5 : 1);
-    const gN = Math.round(nbFermes * 8 * heures * multiplicateur);
+    const gN = Math.round(nbFermes * 8 * heures * multiplicateur * (bonusTechnologie(p, 'agriculture1') ? 1.2 : 1));
     const gB = Math.round(nbScieries * 8 * heures * multiplicateur);
     const gP = Math.round(nbCarrieres * 8 * heures * multiplicateur);
     const gF = Math.round(nbMines * 5 * heures * multiplicateur);
@@ -176,26 +176,89 @@ const MARQUEURS_MONDE = [
 
 // ==================== 🆕 HÉROS (1★ à 4★ recrutables, 5★ capturables uniquement) ====================
 const HEROS_RECRUTABLES = [
-    { nom: "Scribe", icon: "📜", etoiles: 1, attaque: 5, defense: 5, prix: 100 },
-    { nom: "Milicien", icon: "⚔️", etoiles: 1, attaque: 10, defense: 8, prix: 150 },
-    { nom: "Chevalier", icon: "🛡️", etoiles: 2, attaque: 25, defense: 20, prix: 400 },
-    { nom: "Archer d'Élite", icon: "🏹", etoiles: 2, attaque: 30, defense: 10, prix: 380 },
-    { nom: "Mage de Guerre", icon: "🔮", etoiles: 3, attaque: 50, defense: 15, prix: 900 },
-    { nom: "Paladin", icon: "⚜️", etoiles: 3, attaque: 35, defense: 45, prix: 1000 },
-    { nom: "Assassin Royal", icon: "🗡️", etoiles: 4, attaque: 90, defense: 10, prix: 2200 },
-    { nom: "Prêtresse", icon: "🌙", etoiles: 4, attaque: 20, defense: 70, prix: 2100 }
+    { nom: "Scribe", icon: "📜", etoiles: 1, attaque: 5, defense: 5, prix: 100, competence: { type: "butin", valeur: 0.1, desc: "+10% butin" } },
+    { nom: "Milicien", icon: "⚔️", etoiles: 1, attaque: 10, defense: 8, prix: 150, competence: { type: "aucune", desc: "Aucune compétence spéciale" } },
+    { nom: "Chevalier", icon: "🛡️", etoiles: 2, attaque: 25, defense: 20, prix: 400, competence: { type: "immunite", valeur: 0.15, desc: "15% de chance d'ignorer une attaque" } },
+    { nom: "Archer d'Élite", icon: "🏹", etoiles: 2, attaque: 30, defense: 10, prix: 380, competence: { type: "vitesse", valeur: 0.3, desc: "Déplacements 30% plus rapides" } },
+    { nom: "Mage de Guerre", icon: "🔮", etoiles: 3, attaque: 50, defense: 15, prix: 900, competence: { type: "critique", valeur: 0.2, desc: "20% de chance d'attaque critique (+50% dégâts)" } },
+    { nom: "Paladin", icon: "⚜️", etoiles: 3, attaque: 35, defense: 45, prix: 1000, competence: { type: "immunite", valeur: 0.25, desc: "25% de chance d'ignorer une attaque" } },
+    { nom: "Assassin Royal", icon: "🗡️", etoiles: 4, attaque: 90, defense: 10, prix: 2200, competence: { type: "critique", valeur: 0.35, desc: "35% de chance d'attaque critique (+50% dégâts)" } },
+    { nom: "Prêtresse", icon: "🌙", etoiles: 4, attaque: 20, defense: 70, prix: 2100, competence: { type: "butin", valeur: 0.25, desc: "+25% butin" } }
 ];
 const HEROS_LEGENDAIRES = [
-    { nom: "Dragon d'Airain", icon: "🐉", etoiles: 5, attaque: 200, defense: 120 },
-    { nom: "Seigneur des Abysses", icon: "🌊", etoiles: 5, attaque: 150, defense: 180 },
-    { nom: "Phénix Immortel", icon: "🔥", etoiles: 5, attaque: 175, defense: 150 }
+    { nom: "Dragon d'Airain", icon: "🐉", etoiles: 5, attaque: 200, defense: 120, competence: { type: "critique", valeur: 0.4, desc: "40% de chance d'attaque critique (+50% dégâts)" } },
+    { nom: "Seigneur des Abysses", icon: "🌊", etoiles: 5, attaque: 150, defense: 180, competence: { type: "immunite", valeur: 0.35, desc: "35% de chance d'ignorer une attaque" } },
+    { nom: "Phénix Immortel", icon: "🔥", etoiles: 5, attaque: 175, defense: 150, competence: { type: "vitesse", valeur: 0.5, desc: "Déplacements 50% plus rapides + 20% butin" } }
 ];
+
+// ==================== 🆕 ÉQUIPEMENT (5 emplacements, sets 3/5 et 5/5, compétences spéciales) ====================
+const TOUS_EQUIPEMENTS = [
+    { id: "epee_fer", slot: "arme", nom: "⚔️ Épée de Fer", att: 15, def: 0, prix: 250, rarete: "Commun", set: "Guerrier" },
+    { id: "lance_argent", slot: "arme", nom: "🔱 Lance d'Argent", att: 35, def: 5, prix: 700, rarete: "Rare", set: "Guerrier" },
+    { id: "marteau_titan", slot: "arme", nom: "🔨 Marteau du Titan", att: 60, def: 10, prix: 1600, rarete: "Épique", set: "Berserker", passif: { type: "critique", valeur: 0.15, desc: "15% attaque critique" } },
+    { id: "lame_ombre", slot: "arme", nom: "🗡️ Lame de l'Ombre", att: 90, def: 15, prix: 3200, rarete: "Légendaire", set: "Assassin", passif: { type: "critique", valeur: 0.25, desc: "25% attaque critique" } },
+    { id: "cuir", slot: "armure", nom: "🛡️ Armure de Cuir", att: 0, def: 20, prix: 200, rarete: "Commun", set: "Guerrier" },
+    { id: "cotte", slot: "armure", nom: "🛡️ Cotte de Mailles", att: 0, def: 45, prix: 650, rarete: "Rare", set: "Guerrier" },
+    { id: "manteau_ombre", slot: "armure", nom: "🌑 Manteau de l'Ombre", att: 10, def: 60, prix: 1500, rarete: "Épique", set: "Assassin", passif: { type: "immunite", valeur: 0.15, desc: "15% ignorer une attaque" } },
+    { id: "armure_sacree", slot: "armure", nom: "✨ Armure Sacrée", att: 15, def: 120, prix: 3000, rarete: "Légendaire", set: "Paladin", passif: { type: "immunite", valeur: 0.3, desc: "30% ignorer une attaque" } },
+    { id: "heaume_fer", slot: "casque", nom: "🪖 Heaume de Fer", att: 0, def: 25, prix: 300, rarete: "Commun", set: "Guerrier" },
+    { id: "casque_loup", slot: "casque", nom: "🐺 Casque du Loup", att: 10, def: 30, prix: 700, rarete: "Rare", set: "Berserker" },
+    { id: "diademe_aube", slot: "casque", nom: "👑 Diadème de l'Aube", att: 25, def: 20, prix: 1800, rarete: "Épique", set: "Paladin" },
+    { id: "couronne_ombre", slot: "casque", nom: "🌑 Couronne de l'Ombre", att: 40, def: 25, prix: 3000, rarete: "Légendaire", set: "Assassin" },
+    { id: "medaille_bronze", slot: "medaille", nom: "🎖️ Médaille de Bronze", att: 5, def: 5, prix: 200, rarete: "Commun", set: "Guerrier" },
+    { id: "medaille_valeur", slot: "medaille", nom: "🎖️ Médaille de Valeur", att: 15, def: 15, prix: 700, rarete: "Rare", set: "Berserker" },
+    { id: "amulette_anciens", slot: "medaille", nom: "📿 Amulette des Anciens", att: 10, def: 40, prix: 1800, rarete: "Épique", set: "Paladin", passif: { type: "immunite", valeur: 0.2, desc: "20% ignorer une attaque" } },
+    { id: "medaille_dragon", slot: "medaille", nom: "🐉 Médaille du Dragon", att: 45, def: 20, prix: 3200, rarete: "Légendaire", set: "Assassin", passif: { type: "critique", valeur: 0.2, desc: "20% attaque critique" } },
+    { id: "bottes_cuir", slot: "bottes", nom: "👢 Bottes de Cuir", att: 0, def: 10, prix: 180, rarete: "Commun", set: "Guerrier" },
+    { id: "bottes_eclaireur", slot: "bottes", nom: "👢 Bottes d'Éclaireur", att: 10, def: 10, prix: 650, rarete: "Rare", set: "Berserker" },
+    { id: "bottes_vent", slot: "bottes", nom: "💨 Bottes du Vent", att: 5, def: 15, prix: 1600, rarete: "Épique", set: "Paladin", passif: { type: "vitesse", valeur: 0.2, desc: "Déplacements 20% plus rapides" } },
+    { id: "bottes_ombre", slot: "bottes", nom: "🌑 Bottes de l'Ombre", att: 20, def: 20, prix: 3000, rarete: "Légendaire", set: "Assassin", passif: { type: "vitesse", valeur: 0.35, desc: "Déplacements 35% plus rapides" } }
+];
+const SLOTS_EQUIPEMENT = ["arme", "armure", "casque", "medaille", "bottes"];
+function calculerBonusEquipement(profil) {
+    const inv = profil.inventaireEquipement || [];
+    const possedes = inv.map(id => TOUS_EQUIPEMENTS.find(e => e.id === id)).filter(Boolean);
+    let att = 0, def = 0;
+    possedes.forEach(e => { att += e.att; def += e.def; });
+    const parSet = {};
+    possedes.forEach(e => { if (!parSet[e.set]) parSet[e.set] = new Set(); parSet[e.set].add(e.slot); });
+    const setsActifs = Object.entries(parSet).filter(([, slots]) => slots.size >= 3).map(([nom, slots]) => ({ nom, complet: slots.size === 5 }));
+    let multiplicateur = 1;
+    setsActifs.forEach(s => { multiplicateur += s.complet ? 0.25 : 0.1; });
+    const passifs = possedes.filter(e => e.passif && (parSet[e.set]?.size || 0) >= 3).map(e => e.passif);
+    return { attaque: Math.round(att * multiplicateur), defense: Math.round(def * multiplicateur), sets: setsActifs, passifs };
+}
+function afficherBoutiqueEquipement() {
+    const box = document.getElementById('equipementBoutiqueListe');
+    if (!box) return;
+    const possedes = monProfil.inventaireEquipement || [];
+    box.innerHTML = SLOTS_EQUIPEMENT.map(slot => {
+        const items = TOUS_EQUIPEMENTS.filter(e => e.slot === slot);
+        return `<h4 style="color:var(--gold);margin:10px 0 4px;text-transform:capitalize;">${slot}</h4>` + items.map(e => `<div class="item-card"><div class="info"><h4>${e.nom} (${e.rarete})</h4><span>Att +${e.att} / Déf +${e.def}${e.passif ? ' — ' + e.passif.desc : ''} — Set ${e.set}</span></div>${possedes.includes(e.id) ? '<span style="color:#6ee7b7;font-size:11px;">✅ Possédé</span>' : `<button onclick="acheterEquipement('${e.id}')" class="btn-sm" style="background:var(--gold);color:#0a061d;">${e.prix}🪙</button>`}</div>`).join('');
+    }).join('');
+    const bonus = calculerBonusEquipement(monProfil);
+    const setsTxt = bonus.sets.length ? bonus.sets.map(s => `${s.nom} (${s.complet ? '5/5' : '3/5'})`).join(', ') : 'Aucun';
+    const resume = document.getElementById('equipementResume');
+    if (resume) resume.innerText = `⚔️ Bonus actuel : +${bonus.attaque} Att / +${bonus.defense} Déf — Sets actifs : ${setsTxt}`;
+}
+window.acheterEquipement = async function(id) {
+    const e = TOUS_EQUIPEMENTS.find(x => x.id === id);
+    if (monProfil.or < e.prix) { afficherToast("⛔ Pas assez d'or."); return; }
+    monProfil.or -= e.prix;
+    monProfil.inventaireEquipement = [...(monProfil.inventaireEquipement || []), id];
+    await sauvegarder({ or: monProfil.or, inventaireEquipement: monProfil.inventaireEquipement });
+    majHUD();
+    afficherGainFlottant(`${e.nom} !`);
+    afficherToast(`${e.nom} équipé !`);
+    afficherBoutiqueEquipement();
+};
+
 function afficherMesHeros() {
     const box = document.getElementById('mesHerosListe');
     if (!box) return;
     const heros = monProfil.heros || [];
     if (heros.length === 0) { box.innerHTML = `<p class="hint">Aucun héros. Recrute-en un ci-dessous !</p>`; return; }
-    box.innerHTML = heros.map((h, i) => `<div class="item-card"><div class="info"><h4>${h.icon} ${h.nom} ${"⭐".repeat(h.etoiles)}${monProfil.meneurIndex === i ? ' <span style="color:var(--gold);">(Meneur)</span>' : ''}</h4><span>Att ${h.attaque} / Déf ${h.defense}</span></div>${monProfil.meneurIndex === i ? `<button onclick="retirerMeneur()" class="btn-sm">Retirer</button>` : `<button onclick="definirMeneur(${i})" class="btn-sm" style="background:var(--gold);color:#0a061d;">Nommer meneur</button>`}</div>`).join('');
+    box.innerHTML = heros.map((h, i) => `<div class="item-card"><div class="info"><h4>${h.icon} ${h.nom} ${"⭐".repeat(h.etoiles)}${monProfil.meneurIndex === i ? ' <span style="color:var(--gold);">(Meneur)</span>' : ''}</h4><span>Att ${h.attaque} / Déf ${h.defense} — ${h.competence?.desc || ''}</span></div>${monProfil.meneurIndex === i ? `<button onclick="retirerMeneur()" class="btn-sm">Retirer</button>` : `<button onclick="definirMeneur(${i})" class="btn-sm" style="background:var(--gold);color:#0a061d;">Nommer meneur</button>`}</div>`).join('');
 }
 function afficherRecrutementHeros() {
     const box = document.getElementById('recrutementHerosListe');
@@ -330,9 +393,11 @@ window.lancerAttaque = async function() {
 
     if (cibleAttaque.type === 'pnj') {
         const victoire = monAttaque >= cibleAttaque.force;
+        await deplacerTroupes(cibleAttaque.nom);
         await animerCombat(monProfil.pseudo, monProfil.avatar, cibleAttaque.nom, '👹', victoire);
         if (victoire) {
-            const butinOr = 20 + Math.floor(cibleAttaque.force * 0.2);
+            const multButin = bonusButin(monProfil) * (bonusTechnologie(monProfil, 'commerce1') ? 1.1 : 1);
+            const butinOr = Math.round((20 + Math.floor(cibleAttaque.force * 0.2)) * multButin);
             const butinBois = Math.floor(cibleAttaque.force * 0.3);
             const butinPierre = Math.floor(cibleAttaque.force * 0.25);
             const butinFer = Math.floor(cibleAttaque.force * 0.15);
@@ -386,6 +451,7 @@ window.lancerAttaque = async function() {
     }
     const sonDefense = forceDefense(defenseur);
     const victoire = monAttaqueFinale * (0.85 + Math.random() * 0.3) >= sonDefense;
+    await deplacerTroupes(defenseur.pseudo);
     await animerCombat(monProfil.pseudo, monProfil.avatar, defenseur.pseudo, defenseur.avatar || '🏰', victoire);
 
     if (victoire) {
@@ -398,7 +464,8 @@ window.lancerAttaque = async function() {
             fermerTiroir();
             return;
         }
-        const butinOr = Math.min(defenseur.or || 0, Math.round((defenseur.or || 0) * 0.15) + 20);
+        const multButin = bonusButin(monProfil) * (bonusTechnologie(monProfil, 'commerce1') ? 1.1 : 1);
+        const butinOr = Math.min(defenseur.or || 0, Math.round(((defenseur.or || 0) * 0.15 + 20) * multButin));
         const butinBois = Math.min(defenseur.ressources.bois, Math.round(defenseur.ressources.bois * 0.15));
         const butinPierre = Math.min(defenseur.ressources.pierre, Math.round(defenseur.ressources.pierre * 0.15));
         defenseur.or -= butinOr; defenseur.ressources.bois -= butinBois; defenseur.ressources.pierre -= butinPierre;
@@ -433,7 +500,52 @@ function reduireTroupes(troupes, ratio) {
     return perdues;
 }
 
-// ==================== 🆕 COMBAT ANIMÉ TOUR PAR TOUR ====================
+// ==================== 🆕 RECHERCHE (technologies permanentes) ====================
+const TECHNOLOGIES = [
+    { id: "forge1", nom: "🔥 Forge Améliorée", desc: "+15% attaque de toutes tes troupes.", prix: 800, materiaux: { bois: 200, pierre: 100 } },
+    { id: "fortif1", nom: "🧱 Fortifications", desc: "+15% défense de toutes tes troupes.", prix: 800, materiaux: { pierre: 200, fer: 100 } },
+    { id: "agriculture1", nom: "🌾 Agronomie", desc: "+20% production automatique de nourriture.", prix: 500, materiaux: { bois: 100 } },
+    { id: "commerce1", nom: "💰 Routes Commerciales", desc: "+10% or gagné en combat.", prix: 900, materiaux: { fer: 150 } }
+];
+function bonusTechnologie(profil, id) { return (profil.recherches || {})[id] ? true : false; }
+function afficherRecherche() {
+    const box = document.getElementById('rechercheListe');
+    if (!box) return;
+    box.innerHTML = TECHNOLOGIES.map(t => {
+        const possede = bonusTechnologie(monProfil, t.id);
+        const coutTxt = Object.entries(t.materiaux).map(([k, v]) => `${v}${k === 'bois' ? '🪵' : k === 'pierre' ? '🪨' : '⛓️'}`).join(' ');
+        return `<div class="item-card"><div class="info"><h4>${t.nom}</h4><span>${t.desc} — ${t.prix}🪙 + ${coutTxt}</span></div>${possede ? '<span style="color:#6ee7b7;font-size:11px;">✅ Recherché</span>' : `<button onclick="rechercherTech('${t.id}')" class="btn-sm" style="background:var(--gold);color:#0a061d;">Rechercher</button>`}</div>`;
+    }).join('');
+}
+window.rechercherTech = async function(id) {
+    const t = TECHNOLOGIES.find(x => x.id === id);
+    if (monProfil.or < t.prix) { afficherToast("⛔ Pas assez d'or."); return; }
+    for (const [mat, qte] of Object.entries(t.materiaux)) { if (monProfil.ressources[mat] < qte) { afficherToast(`⛔ Il manque du ${mat}.`); return; } }
+    monProfil.or -= t.prix;
+    Object.entries(t.materiaux).forEach(([mat, qte]) => monProfil.ressources[mat] -= qte);
+    monProfil.recherches = { ...(monProfil.recherches || {}), [id]: true };
+    await sauvegarder({ or: monProfil.or, ressources: monProfil.ressources, recherches: monProfil.recherches });
+    majHUD();
+    afficherToast(`🧪 ${t.nom} recherché !`);
+    afficherRecherche();
+};
+
+// ==================== 🆕 DÉPLACEMENT DES TROUPES (animation avant le combat) ====================
+function deplacerTroupes(nomCible) {
+    return new Promise((resolve) => {
+        const overlay = document.getElementById('deplacement-troupes-backdrop');
+        const texte = document.getElementById('deplacementTexte');
+        const icone = document.getElementById('deplacementIcone');
+        const vitesseHero = (monProfil.heros || [])[monProfil.meneurIndex]?.competence;
+        const rapide = vitesseHero && vitesseHero.type === 'vitesse';
+        texte.innerText = `🐎 Tes troupes se dirigent vers ${nomCible}...${rapide ? ' (renforcées par la vitesse du meneur)' : ''}`;
+        overlay.style.display = 'flex';
+        icone.style.animation = 'none'; void icone.offsetWidth; icone.style.animation = `marcheTroupes ${rapide ? 1.1 : 1.8}s linear forwards`;
+        setTimeout(() => { overlay.style.display = 'none'; resolve(); }, rapide ? 1150 : 1850);
+    });
+}
+
+
 // Le vainqueur est déjà déterminé par le calcul de force (fait avant l'appel) — l'animation ne fait que le mettre en scène,
 // avec quelques rounds visuels où les barres de vie descendent, avant de révéler le résultat.
 let _combatAnimeResolve = null;
@@ -583,13 +695,22 @@ window.utiliserMecontentement = async function(idCible, pseudoCible) {
 };
 
 // ==================== 🆕 COMBAT RÉEL ENTRE JOUEURS ====================
+// Bonus de butin du héros meneur (compétence "butin")
+function bonusButin(profil) {
+    const h = (profil.heros || [])[profil.meneurIndex];
+    return (h?.competence?.type === 'butin') ? (1 + h.competence.valeur) : 1;
+}
+
 function forceAttaque(profil) {
-    return Object.entries(profil.troupes || {}).reduce((s, [k, n]) => s + n * (DEFS_TROUPES[k]?.attaque || 0), 0) + bonusMeneur(profil).attaque;
+    const base = Object.entries(profil.troupes || {}).reduce((s, [k, n]) => s + n * (DEFS_TROUPES[k]?.attaque || 0), 0);
+    const bonusTech = bonusTechnologie(profil, 'forge1') ? 1.15 : 1;
+    return Math.round((base + bonusMeneur(profil).attaque + calculerBonusEquipement(profil).attaque) * bonusTech);
 }
 function forceDefense(profil) {
     const base = Object.entries(profil.troupes || {}).reduce((s, [k, n]) => s + n * (DEFS_TROUPES[k]?.defense || 0), 0);
     const niveauMirador = profil.batiments?.mirador || 0;
-    return base + niveauMirador * 10 + bonusMeneur(profil).defense;
+    const bonusTech = bonusTechnologie(profil, 'fortif1') ? 1.15 : 1;
+    return Math.round((base + niveauMirador * 10 + bonusMeneur(profil).defense + calculerBonusEquipement(profil).defense) * bonusTech);
 }
 // Positionne les autres joueurs sur la carte du monde (position stable, dérivée de leur ID)
 function positionJoueur(id) {
@@ -728,6 +849,7 @@ window.attaquerTerritoire = async function(id) {
 
     const deco = ICONES_TERRITOIRE[t.nomtype] || { emoji: '🗺️' };
     const victoire = monAttaque * (0.85 + Math.random() * 0.3) >= seuil;
+    await deplacerTroupes(t.nomtype);
     await animerCombat(monProfil.pseudo, monProfil.avatar, t.nomtype, deco.emoji, victoire);
 
     if (victoire) {
@@ -899,7 +1021,8 @@ window.toggleTiroir = function(nom) {
     if (nom === 'rassemblement') creerRassemblement();
     if (nom === 'forgeron') creerListeEquipement();
     if (nom === 'alliance') afficherAlliance();
-    if (nom === 'articles') afficherArticles();
+    if (nom === 'articles') { afficherArticles(); afficherBoutiqueEquipement(); }
+    if (nom === 'research') afficherRecherche();
     if (nom === 'courrier') rendreCourrier();
     if (nom === 'march') document.getElementById('marchList').innerHTML = `<p class="hint">Aucune armée en marche pour l'instant.</p>`;
 };
@@ -1090,6 +1213,8 @@ async function entrerDansLeJeu() {
     if (!monProfil.strategies) monProfil.strategies = { mecontentement: 0, brusque: 0 };
     if (!monProfil.heros) monProfil.heros = [];
     if (monProfil.meneurIndex === undefined) monProfil.meneurIndex = null;
+    if (!monProfil.inventaireEquipement) monProfil.inventaireEquipement = [];
+    if (!monProfil.recherches) monProfil.recherches = {};
     if (monProfil.prestige === undefined) monProfil.prestige = 0;
 
     document.getElementById('login-screen').style.display = 'none';
@@ -1117,4 +1242,3 @@ if (savedId) {
     document.getElementById('codeInput').value = savedId;
     seConnecter();
 }
-
