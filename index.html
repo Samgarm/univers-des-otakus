@@ -9,7 +9,7 @@
 </head>
 <body>
 
-<!-- ===================== AUTHENTIFICATION (réelle, Firebase) ===================== -->
+<!-- ===================== AUTHENTIFICATION ===================== -->
 <div id="login-screen">
     <div id="login-overlay" class="auth-overlay">
         <h1>⚔️ Lyon : l'Éveil</h1>
@@ -112,7 +112,6 @@
         <div id="drawer-articles" class="drawer"><div class="drawer-handle"></div><h2>🎒 Articles</h2>
             <h4 style="color:var(--gold);margin-bottom:6px;">🎴 Mes stratégies</h4>
             <div id="mesStrategiesListe" style="margin-bottom:14px;"></div>
-            <!-- 🆕 Section Quêtes -->
             <h4 style="color:var(--gold);margin-bottom:6px;">📜 Quêtes</h4>
             <div id="quetesListe" style="margin-bottom:14px;"></div>
             <h4 style="color:var(--gold);margin-bottom:6px;">🛒 Boutique</h4>
@@ -145,16 +144,17 @@
         <div id="drawer-battle" class="drawer"><div class="drawer-handle"></div><h2>⚔️ Formations</h2><p class="hint">Organise tes troupes avant la bataille.</p></div>
         <div id="drawer-research" class="drawer"><div class="drawer-handle"></div><h2>🧪 Recherche</h2><div id="rechercheListe"></div></div>
         <div id="drawer-journal" class="drawer"><div class="drawer-handle"></div><h2>📜 Journal du Monde</h2><div id="journalMessages" class="chat-scroll"></div></div>
+        <div id="drawer-inventaire" class="drawer"><div class="drawer-handle"></div><h2>🎒 Inventaire</h2><div id="inventaireListe"></div></div>
 
         <div id="drawer-chat" class="drawer"><div class="drawer-handle"></div><h2>💬 Chat mondial</h2><div id="chatMessages" class="chat-scroll"></div><div class="chat-input-row"><input type="text" id="chatInput" class="input-premium" placeholder="Ton message..." style="margin:0;"><button onclick="envoyerMessageChat()" class="btn-gold" style="width:auto;margin:0;padding:10px 16px;"><i class="fas fa-paper-plane"></i></button></div></div>
 
-        <!-- 🆕 Déplacement des troupes avant le combat -->
+        <!-- Déplacement des troupes -->
         <div id="deplacement-troupes-backdrop" style="position:absolute;inset:0;z-index:65;display:none;background:rgba(0,0,0,0.75);align-items:center;justify-content:center;flex-direction:column;gap:14px;">
             <div id="deplacementIcone" style="font-size:34px;">🐎</div>
             <p id="deplacementTexte" style="color:var(--gold);font-size:13px;text-align:center;padding:0 30px;"></p>
         </div>
 
-        <!-- 🆕 Panel de combat animé tour par tour (avatars + barres de vie) -->
+        <!-- Panel de combat animé -->
         <div id="combat-anime-backdrop" style="position:absolute;inset:0;z-index:70;display:none;background:rgba(0,0,0,0.85);align-items:center;justify-content:center;padding:16px;">
             <div style="width:100%;max-width:420px;background:linear-gradient(180deg,#1a1440,#0a061d);border:2px solid var(--gold);border-radius:16px;padding:18px;">
                 <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
@@ -177,12 +177,12 @@
 
         <div id="build-modal-backdrop" onclick="if(event.target===this) fermerModal()"><div id="build-modal"></div></div>
 
-        <!-- 🆕 Panel de profil d'une ville adverse : puissance, prestige, espionnage, attaque -->
+        <!-- Profil ville adverse -->
         <div id="profil-ville-backdrop" onclick="if(event.target===this) fermerProfilVille()" style="position:absolute;inset:0;z-index:60;display:none;background:rgba(0,0,0,0.55);align-items:flex-end;justify-content:center;">
             <div id="profil-ville-modal" style="width:100%;max-width:480px;background:linear-gradient(180deg,#1a1440,#0a061d);border-top:2px solid var(--gold);border-radius:18px 18px 0 0;padding:20px;text-align:center;"></div>
         </div>
 
-        <!-- 🆕 Panel de profil d'un territoire (marécage/forêt/montagne) -->
+        <!-- Profil territoire -->
         <div id="profil-territoire-backdrop" onclick="if(event.target===this) fermerProfilTerritoire()" style="position:absolute;inset:0;z-index:60;display:none;background:rgba(0,0,0,0.55);align-items:flex-end;justify-content:center;">
             <div id="profil-territoire-modal" style="width:100%;max-width:480px;background:linear-gradient(180deg,#1a1440,#0a061d);border-top:2px solid var(--gold);border-radius:18px 18px 0 0;padding:20px;text-align:center;"></div>
         </div>
@@ -222,14 +222,13 @@
         <button class="nav-btn" onclick="toggleTiroir('recruter')">
             <div class="nav-icon"><i class="fas fa-helmet-safety"></i></div><span>Recruter</span>
         </button>
-        <button class="nav-btn" onclick="toggleTiroir('artisanat')">
-            <div class="nav-icon"><i class="fas fa-hammer"></i></div><span>Artisanat</span>
+        <button class="nav-btn" onclick="toggleTiroir('inventaire')">
+            <div class="nav-icon"><i class="fas fa-backpack"></i></div><span>Inventaire</span>
         </button>
     </div>
 </div>
 
 <div id="toast"></div>
-<!-- 🆕 Musique de fond : place un fichier musique.mp3 (libre de droits) à côté de index.html dans le dépôt GitHub -->
 <audio id="bgMusic" loop preload="none">
     <source src="musique.mp3" type="audio/mpeg">
 </audio>
