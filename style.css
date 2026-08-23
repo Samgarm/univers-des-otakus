@@ -173,4 +173,3 @@ body { background: var(--bg-dark); color: #f1f5f9; overflow: hidden; height: 100
 #chat-strip i.chat-bubble { color: #d4a24c; font-size: 17px; }
 
 #toast { position: fixed; bottom: 130px; left: 20px; right: 20px; background: #1e193d; color: white; padding: 10px 15px; border-radius: 8px; border-left: 4px solid var(--gold); display: none; font-size: 13px; text-align: center; z-index: 999; }
-
