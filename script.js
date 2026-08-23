@@ -31,12 +31,15 @@ function batimentsParDefaut() {
   };
 }
 
+// 🔧 CORRIGÉ : ajout de strategies complètes (mecontentement/brusque/contreOffensive/faillite),
+// c'était appauvri dans la version collée (seulement mecontentement+brusque).
 function profilParDefaut(pseudo, codeRecup) {
   return {
     pseudo, avatar: "👑", codeRecuperation: codeRecup, banni: false, premiereConnexion: true,
     or: 500, moral: 80, tauxImpots: 10,
     allianceId: null, nomVille: "Lyon", prestige: 0,
-    strategies: { mecontentement: 0, brusque: 0, contreOffensive: 0, faillite: 0 }, contreOffensifFin: null, malusProductionFin: null,
+    strategies: { mecontentement: 0, brusque: 0, contreOffensive: 0, faillite: 0 },
+    contreOffensifFin: null, malusProductionFin: null,
     heros: [], meneurIndex: null, herosFonctionnaireIndex: null, heroAttaqueIndex: null,
     inventaireEquipement: [], recherches: {},
     ressources: { nourriture: 800, bois: 600, pierre: 400, fer: 200 },
@@ -167,6 +170,14 @@ function calculerTauxProduction() {
     tauxN *= bonus; tauxB *= bonus; tauxP *= bonus; tauxF *= bonus;
   }
   if (bonusTechnologie(monProfil, 'agriculture1')) tauxN *= 1.2;
+  // 🆕 Le boost "Articles" double toute la production
+  if (monProfil.boostProductionFin && monProfil.boostProductionFin > Date.now()) {
+    tauxN *= 2; tauxB *= 2; tauxP *= 2; tauxF *= 2;
+  }
+  // 🆕 La Graine de Mécontentement réduit la production de moitié
+  if (monProfil.malusProductionFin && monProfil.malusProductionFin > Date.now()) {
+    tauxN *= 0.5; tauxB *= 0.5; tauxP *= 0.5; tauxF *= 0.5;
+  }
   if (monProfil.moral < 30) {
     tauxN *= 0.5; tauxB *= 0.5; tauxP *= 0.5; tauxF *= 0.5;
   }
@@ -224,6 +235,7 @@ async function calculerProductionAutomatique() {
 }
 
 // ==================== HUD ====================
+// 🔧 CORRIGÉ : population et moral n'étaient jamais réellement affichés (IDs absents du HTML) — maintenant présents.
 function majHUD() {
   document.getElementById('avatarBox').innerText = monProfil.avatar || "👑";
   document.getElementById('pnameAffiche').innerText = monProfil.pseudo;
@@ -237,8 +249,10 @@ function majHUD() {
   document.getElementById('hudOr').innerText = Math.floor(monProfil.or);
   const popInactive = document.getElementById('hudPopInactive');
   const popMax = document.getElementById('hudPopMax');
-  if (popInactive) popInactive.innerText = monProfil.populationInactive;
-  if (popMax) popMax.innerText = monProfil.populationMax;
+  if (popInactive) popInactive.innerText = Math.max(0, Math.floor(monProfil.populationInactive || 0));
+  if (popMax) popMax.innerText = Math.floor(monProfil.populationMax || 0);
+  const moralEl = document.getElementById('hudMoral');
+  if (moralEl) moralEl.innerText = Math.round(monProfil.moral || 0);
 }
 
 // ==================== DONNÉES BÂTIMENTS & MONDE ====================
@@ -314,6 +328,46 @@ const HEROS_LEGENDAIRES = [
   { nom: "Phénix Immortel", icon: "🔥", etoiles: 5, attaque: 175, defense: 150, competence: { type: "vitesse", valeur: 0.5, desc: "Déplacements 50% plus rapides + 20% butin" }, equipements: [] }
 ];
 
+// 🔧 CORRIGÉ : ces deux fonctions étaient appelées (toggleTiroir 'recruter') mais n'existaient nulle part → le tiroir plantait.
+function afficherMesHeros() {
+  const box = document.getElementById('mesHerosListe');
+  if (!box) return;
+  const heros = monProfil.heros || [];
+  if (heros.length === 0) { box.innerHTML = `<p class="hint">Aucun héros. Recrute-en un ci-dessous !</p>`; return; }
+  box.innerHTML = heros.map((h, i) => {
+    const stats = calculerStatsHeroAvecEquipements(h);
+    return `<div class="item-card"><div class="info"><h4>${h.icon} ${h.nom} ${"⭐".repeat(h.etoiles)}${monProfil.meneurIndex === i ? ' <span style="color:var(--gold);">(Meneur)</span>' : ''}</h4><span>Att ${stats.attaque} / Déf ${stats.defense} — ${h.competence?.desc || ''}</span></div><div style="display:flex;gap:4px;flex-wrap:wrap;">${monProfil.meneurIndex === i ? `<button onclick="retirerMeneur()" class="btn-sm">Retirer</button>` : `<button onclick="definirMeneur(${i})" class="btn-sm">Nommer meneur</button>`}<button onclick="afficherPanelHeros(${i})" class="btn-sm" style="background:rgba(255,255,255,0.15);color:var(--gold);">Équiper</button></div></div>`;
+  }).join('');
+}
+function afficherRecrutementHeros() {
+  const box = document.getElementById('recrutementHerosListe');
+  if (!box) return;
+  box.innerHTML = HEROS_RECRUTABLES.map((h, i) => `<div class="item-card"><div class="info"><h4>${h.icon} ${h.nom} ${"⭐".repeat(h.etoiles)}</h4><span>Att ${h.attaque} / Déf ${h.defense} — ${h.competence?.desc || ''}</span></div><button onclick="recruterHeros(${i})" class="btn-sm">${h.prix}🪙</button></div>`).join('');
+}
+window.recruterHeros = async function(index) {
+  const h = HEROS_RECRUTABLES[index];
+  if (monProfil.or < h.prix) { afficherToast("⛔ Pas assez d'or."); return; }
+  monProfil.or -= h.prix;
+  monProfil.heros = [...(monProfil.heros || []), { ...h, equipements: [] }];
+  await sauvegarder({ or: monProfil.or, heros: monProfil.heros });
+  majHUD();
+  afficherGainFlottant(`${h.icon} +1 héros !`);
+  afficherToast(`${h.icon} ${h.nom} rejoint tes rangs !`);
+  afficherMesHeros();
+  verifierProgressionQuetes();
+};
+window.definirMeneur = async function(index) {
+  monProfil.meneurIndex = index;
+  await sauvegarder({ meneurIndex: index });
+  afficherToast(`🎖️ ${monProfil.heros[index].nom} mène désormais tes campagnes militaires !`);
+  afficherMesHeros(); majHUD();
+};
+window.retirerMeneur = async function() {
+  monProfil.meneurIndex = null;
+  await sauvegarder({ meneurIndex: null });
+  afficherMesHeros(); majHUD();
+};
+
 // ==================== TROUPES (12 types) ====================
 const DEFS_TROUPES = {
   fantassins:      { nom:'Fantassins',       icon:'fa-shield',              attaque:6,  defense:9,  population:1, cout:{nourriture:20, bois:5, fer:0} },
@@ -342,11 +396,11 @@ const TOUS_EQUIPEMENTS = [
   { id:'faille_armure', slot:'armure', nom:'🌌 Armure Temporelle', att:15, def:30, vit:-2, set:'Faille Temporelle', source:'boutique', coutOr:1800, rarete:'Épique' },
   { id:'faille_bottes', slot:'bottes', nom:'👢 Bottes Temporelles', att:5, def:10, vit:15, set:'Faille Temporelle', source:'boutique', coutOr:1000, rarete:'Épique' },
   { id:'faille_medaille', slot:'medaille', nom:'⏳ Pendentif de la Faille', att:10, def:15, vit:5, set:'Faille Temporelle', source:'boutique', coutOr:2000, rarete:'Épique' },
-  { id:'assassin_epee', slot:'arme', nom:'🗡️ Lame de l\'Assassin', att:30, def:0, vit:10, set:'Assassin', source:'boutique', coutOr:1400, rarete:'Rare' },
-  { id:'assassin_casque', slot:'casque', nom:'🌑 Masque de l\'Assassin', att:10, def:15, vit:10, set:'Assassin', source:'boutique', coutOr:1100, rarete:'Rare' },
-  { id:'assassin_armure', slot:'armure', nom:'🌑 Cape de l\'Assassin', att:20, def:20, vit:10, set:'Assassin', source:'boutique', coutOr:1700, rarete:'Rare' },
-  { id:'assassin_bottes', slot:'bottes', nom:'👢 Bottes de l\'Assassin', att:5, def:5, vit:20, set:'Assassin', source:'boutique', coutOr:900, rarete:'Rare' },
-  { id:'assassin_medaille', slot:'medaille', nom:'🎖️ Insigne de l\'Assassin', att:15, def:5, vit:10, set:'Assassin', source:'boutique', coutOr:1900, rarete:'Rare' },
+  { id:'assassin_epee', slot:'arme', nom:"🗡️ Lame de l'Assassin", att:30, def:0, vit:10, set:'Assassin', source:'boutique', coutOr:1400, rarete:'Rare' },
+  { id:'assassin_casque', slot:'casque', nom:"🌑 Masque de l'Assassin", att:10, def:15, vit:10, set:'Assassin', source:'boutique', coutOr:1100, rarete:'Rare' },
+  { id:'assassin_armure', slot:'armure', nom:"🌑 Cape de l'Assassin", att:20, def:20, vit:10, set:'Assassin', source:'boutique', coutOr:1700, rarete:'Rare' },
+  { id:'assassin_bottes', slot:'bottes', nom:"👢 Bottes de l'Assassin", att:5, def:5, vit:20, set:'Assassin', source:'boutique', coutOr:900, rarete:'Rare' },
+  { id:'assassin_medaille', slot:'medaille', nom:"🎖️ Insigne de l'Assassin", att:15, def:5, vit:10, set:'Assassin', source:'boutique', coutOr:1900, rarete:'Rare' },
   { id:'berserker_epee', slot:'arme', nom:'🪓 Hache du Berserker', att:40, def:-10, vit:0, set:'Berserker', source:'forge', coutOr:1200, coutMat:{bois:50, fer:80}, rarete:'Rare' },
   { id:'berserker_casque', slot:'casque', nom:'🐺 Casque du Berserker', att:15, def:10, vit:5, set:'Berserker', source:'forge', coutOr:900, coutMat:{bois:30, fer:40}, rarete:'Rare' },
   { id:'berserker_armure', slot:'armure', nom:'🛡️ Armure du Berserker', att:20, def:25, vit:-5, set:'Berserker', source:'forge', coutOr:1500, coutMat:{bois:40, fer:70}, rarete:'Rare' },
@@ -356,7 +410,7 @@ const TOUS_EQUIPEMENTS = [
   { id:'paladin_casque', slot:'casque', nom:'👑 Heaume du Paladin', att:5, def:30, vit:0, set:'Paladin', source:'boutique', coutOr:1400, rarete:'Épique' },
   { id:'paladin_armure', slot:'armure', nom:'✨ Armure Sacrée', att:10, def:40, vit:-3, set:'Paladin', source:'boutique', coutOr:2000, rarete:'Épique' },
   { id:'paladin_bottes', slot:'bottes', nom:'👢 Bottes du Paladin', att:0, def:15, vit:5, set:'Paladin', source:'boutique', coutOr:1000, rarete:'Épique' },
-  { id:'paladin_medaille', slot:'medaille', nom:'📿 Amulette du Paladin', att:10, def:20, vit:0, set:'Paladin', source:'boutique', coutOr:1800, rarete:'Épique' },
+  { id:'paladin_medaille', slot:'medaille', nom:'📿 Amulette du Paladin', att:10, def:20, vit:0, set:'Paladin', source:'boutique', coutOr:1800, rarete:'Épique' }
 ];
 
 function calculerStatsHeroAvecEquipements(hero) {
@@ -366,25 +420,18 @@ function calculerStatsHeroAvecEquipements(hero) {
   if (hero.equipements) {
     hero.equipements.forEach(idEquip => {
       const equip = TOUS_EQUIPEMENTS.find(e => e.id === idEquip);
-      if (equip) {
-        att += equip.att;
-        def += equip.def;
-        vit += equip.vit || 0;
-      }
+      if (equip) { att += equip.att; def += equip.def; vit += equip.vit || 0; }
     });
   }
   return { attaque: att, defense: def, vitesse: vit };
 }
-
+// 🔧 CORRIGÉ : gardait contre hero undefined (plantait sur un défenseur sans héros).
 function calculerSetActifs(hero) {
-  if (!hero.equipements) return {};
+  if (!hero || !hero.equipements) return {};
   const sets = {};
   hero.equipements.forEach(idEquip => {
     const equip = TOUS_EQUIPEMENTS.find(e => e.id === idEquip);
-    if (equip && equip.set) {
-      if (!sets[equip.set]) sets[equip.set] = [];
-      sets[equip.set].push(idEquip);
-    }
+    if (equip && equip.set) { if (!sets[equip.set]) sets[equip.set] = []; sets[equip.set].push(idEquip); }
   });
   const result = {};
   for (const [nomSet, pieces] of Object.entries(sets)) {
@@ -393,29 +440,13 @@ function calculerSetActifs(hero) {
   }
   return result;
 }
-
 function obtenirEffetsSet(setNom, niveau) {
   const effets = {
-    'Lion': {
-      3: { type:'passif', nom:'Immortalité (2 rounds)', desc:'Survit à une attaque mortelle avec 1 PV pendant 2 rounds.' },
-      5: { type:'contre_attaque', nom:'Contre-attaque', desc:'Riposte avec 50% de ta force d\'attaque quand tu es attaqué.' }
-    },
-    'Faille Temporelle': {
-      3: { type:'passif', nom:'Distorsion', desc:'+10% vitesse de déplacement.' },
-      5: { type:'reset_combat', nom:'Reset Temporel', desc:'Si tu perds, le combat recommence avec +80 force d\'attaque.' }
-    },
-    'Assassin': {
-      3: { type:'passif', nom:'Frappe chirurgicale', desc:'20% de chance de coup critique (+50% dégâts).' },
-      5: { type:'reset_combat', nom:'Résurrection tactique', desc:'Recommence le combat avec +80 force si tu perds.' }
-    },
-    'Berserker': {
-      3: { type:'passif', nom:'Furie', desc:'+15% attaque, +10% vitesse.' },
-      5: { type:'passif', nom:'Dernier souffle', desc:'Immortel 2 rounds quand PV < 20%, attaques critiques.' }
-    },
-    'Paladin': {
-      3: { type:'passif', nom:'Bouclier sacré', desc:'Ignore 25% des dégâts reçus.' },
-      5: { type:'inversion', nom:'Inversion', desc:'Échange attaquant/défenseur pendant 2 rounds.' }
-    }
+    'Lion': { 3: { nom:'Immortalité (2 rounds)', desc:"Survit à une attaque mortelle avec 1 PV pendant 2 rounds." }, 5: { nom:'Contre-attaque', desc:"Riposte avec 50% de ta force d'attaque quand tu es attaqué." } },
+    'Faille Temporelle': { 3: { nom:'Distorsion', desc:'+10% vitesse de déplacement.' }, 5: { nom:'Reset Temporel', desc:'Si tu perds, le combat recommence avec +80 force d\'attaque.' } },
+    'Assassin': { 3: { nom:'Frappe chirurgicale', desc:'20% de chance de coup critique (+50% dégâts).' }, 5: { nom:'Résurrection tactique', desc:'Recommence le combat avec +80 force si tu perds.' } },
+    'Berserker': { 3: { nom:'Furie', desc:'+15% attaque, +10% vitesse.' }, 5: { nom:'Dernier souffle', desc:'Immortel 2 rounds quand PV < 20%, attaques critiques.' } },
+    'Paladin': { 3: { nom:'Bouclier sacré', desc:'Ignore 25% des dégâts reçus.' }, 5: { nom:'Inversion', desc:"Échange attaquant/défenseur pendant 2 rounds." } }
   };
   return effets[setNom] ? effets[setNom][niveau] : null;
 }
@@ -427,7 +458,7 @@ function afficherBoutiqueEquipement() {
   const possedes = monProfil.inventaireEquipement || [];
   box.innerHTML = TOUS_EQUIPEMENTS.filter(e => e.source === 'boutique').map(e => {
     const possede = possedes.includes(e.id);
-    const btn = possede ? '<span style="color:#6ee7b7;">✅ Possédé</span>' : `<button onclick="acheterEquipement('${e.id}')" class="btn-sm" style="background:var(--gold);color:#0a061d;">${e.coutOr}🪙</button>`;
+    const btn = possede ? '<span style="color:#6ee7b7;">✅ Possédé</span>' : `<button onclick="acheterEquipement('${e.id}')" class="btn-sm">${e.coutOr}🪙</button>`;
     return `<div class="item-card"><div class="info"><h4>${e.nom} (${e.rarete})</h4><span>Att +${e.att} / Déf +${e.def} / Vit +${e.vit||0} — Set ${e.set}</span></div>${btn}</div>`;
   }).join('');
 }
@@ -442,7 +473,6 @@ window.acheterEquipement = async function(id) {
   afficherBoutiqueEquipement();
   afficherToast(`${equip.nom} acheté !`);
 };
-
 function afficherForgeEquipement() {
   const box = document.getElementById('equipementList');
   if (!box) return;
@@ -450,7 +480,7 @@ function afficherForgeEquipement() {
   box.innerHTML = TOUS_EQUIPEMENTS.filter(e => e.source === 'forge').map(e => {
     const possede = possedes.includes(e.id);
     const coutMatTxt = Object.entries(e.coutMat).map(([k,v]) => `${v}${k==='bois'?'🪵':k==='fer'?'⛓️':''}`).join(' ');
-    const btn = possede ? '<span style="color:#6ee7b7;">✅ Possédé</span>' : `<button onclick="forgerEquipement('${e.id}')" class="btn-sm" style="background:var(--gold);color:#0a061d;">${e.coutOr}🪙 + ${coutMatTxt}</button>`;
+    const btn = possede ? '<span style="color:#6ee7b7;">✅ Possédé</span>' : `<button onclick="forgerEquipement('${e.id}')" class="btn-sm">${e.coutOr}🪙 + ${coutMatTxt}</button>`;
     return `<div class="item-card"><div class="info"><h4>${e.nom} (${e.rarete})</h4><span>Att +${e.att} / Déf +${e.def} / Vit +${e.vit||0} — Set ${e.set}</span></div>${btn}</div>`;
   }).join('');
 }
@@ -458,9 +488,7 @@ window.forgerEquipement = async function(id) {
   const equip = TOUS_EQUIPEMENTS.find(e => e.id === id);
   if (!equip || equip.source !== 'forge') return;
   if (monProfil.or < equip.coutOr) { afficherToast("⛔ Pas assez d'or."); return; }
-  for (const [mat, qte] of Object.entries(equip.coutMat)) {
-    if ((monProfil.ressources[mat]||0) < qte) { afficherToast(`⛔ Il manque du ${mat}.`); return; }
-  }
+  for (const [mat, qte] of Object.entries(equip.coutMat)) { if ((monProfil.ressources[mat]||0) < qte) { afficherToast(`⛔ Il manque du ${mat}.`); return; } }
   monProfil.or -= equip.coutOr;
   Object.entries(equip.coutMat).forEach(([mat, qte]) => monProfil.ressources[mat] -= qte);
   monProfil.inventaireEquipement = [...(monProfil.inventaireEquipement || []), id];
@@ -471,42 +499,40 @@ window.forgerEquipement = async function(id) {
 };
 
 // ==================== PANEL HÉROS ÉQUIPEMENT ====================
-function afficherPanelHeros(heroIndex) {
+window.afficherPanelHeros = function(heroIndex) {
   const hero = monProfil.heros[heroIndex];
   if (!hero) return;
   const stats = calculerStatsHeroAvecEquipements(hero);
   const setsActifs = calculerSetActifs(hero);
   let html = `<h3>${hero.icon} ${hero.nom} ${"⭐".repeat(hero.etoiles)}</h3>`;
-  html += `<p>Attaque : ${stats.attaque} | Défense : ${stats.defense} | Vitesse : ${stats.vitesse}</p>`;
-  html += `<h4>Sets actifs</h4>`;
-  if (Object.keys(setsActifs).length === 0) html += `<p>Aucun set complet</p>`;
-  else {
-    for (const [nomSet, niveau] of Object.entries(setsActifs)) {
-      const effet = obtenirEffetsSet(nomSet, niveau);
-      if (effet) html += `<p><b>${nomSet} (${niveau}/5)</b> : ${effet.nom} - ${effet.desc}</p>`;
-    }
+  html += `<p style="font-size:13px;color:#e5e7eb;margin:8px 0;">Attaque : ${stats.attaque} | Défense : ${stats.defense} | Vitesse : ${stats.vitesse}</p>`;
+  html += `<h4 style="color:var(--gold);margin-top:10px;">Sets actifs</h4>`;
+  if (Object.keys(setsActifs).length === 0) html += `<p class="hint">Aucun set complet (3 pièces minimum).</p>`;
+  else for (const [nomSet, niveau] of Object.entries(setsActifs)) {
+    const effet = obtenirEffetsSet(nomSet, niveau);
+    if (effet) html += `<p style="font-size:12px;color:#6ee7b7;"><b>${nomSet} (${niveau}/5)</b> : ${effet.nom} — ${effet.desc}</p>`;
   }
-  html += `<h4>Équipements possédés</h4>`;
+  html += `<h4 style="color:var(--gold);margin-top:10px;">Équipements possédés</h4>`;
   const inventaire = monProfil.inventaireEquipement || [];
   const equipementsDisponibles = TOUS_EQUIPEMENTS.filter(e => inventaire.includes(e.id));
-  html += `<div style="max-height:200px;overflow-y:auto;">`;
+  html += `<div style="max-height:220px;overflow-y:auto;">`;
+  if (equipementsDisponibles.length === 0) html += `<p class="hint">Aucun équipement — achète-en dans Articles ou à la Forge.</p>`;
   equipementsDisponibles.forEach(e => {
     const equipe = hero.equipements && hero.equipements.includes(e.id);
-    const btn = equipe ? `<button onclick="desequiperHero(${heroIndex},'${e.id}')" class="btn-sm">Retirer</button>` : `<button onclick="equiperHero(${heroIndex},'${e.id}')" class="btn-sm" style="background:var(--gold);color:#0a061d;">Équiper</button>`;
+    const btn = equipe ? `<button onclick="desequiperHero(${heroIndex},'${e.id}')" class="btn-sm">Retirer</button>` : `<button onclick="equiperHero(${heroIndex},'${e.id}')" class="btn-sm">Équiper</button>`;
     html += `<div class="strategie-row"><div class="info"><h4>${e.nom}</h4><span>Att +${e.att} / Déf +${e.def} / Vit +${e.vit||0} — Set ${e.set}</span></div>${btn}</div>`;
   });
-  html += `</div>`;
-  html += `<button onclick="fermerHeroPanel()" class="close-btn">Fermer</button>`;
+  html += `</div><button onclick="fermerHeroPanel()" class="close-btn">Fermer</button>`;
   document.getElementById('hero-equip-modal').innerHTML = html;
   document.getElementById('hero-equip-backdrop').style.display = 'flex';
-}
+};
 window.equiperHero = async function(heroIndex, equipId) {
   const hero = monProfil.heros[heroIndex];
   if (!hero.equipements) hero.equipements = [];
   if (!hero.equipements.includes(equipId)) {
     hero.equipements.push(equipId);
     await sauvegarder({ heros: monProfil.heros });
-    afficherPanelHeros(heroIndex);
+    afficherPanelHeros(heroIndex); majHUD();
   }
 };
 window.desequiperHero = async function(heroIndex, equipId) {
@@ -514,26 +540,22 @@ window.desequiperHero = async function(heroIndex, equipId) {
   if (hero.equipements) {
     hero.equipements = hero.equipements.filter(id => id !== equipId);
     await sauvegarder({ heros: monProfil.heros });
-    afficherPanelHeros(heroIndex);
+    afficherPanelHeros(heroIndex); majHUD();
   }
 };
-window.fermerHeroPanel = function() {
-  document.getElementById('hero-equip-backdrop').style.display = 'none';
-};
+window.fermerHeroPanel = function() { document.getElementById('hero-equip-backdrop').style.display = 'none'; };
 
 // ==================== SÉLECTION HÉROS ATTAQUE ====================
 let cibleAttaque = null;
 window.ouvrirAttaque = function(cible) {
   cibleAttaque = cible;
   const herosDisponibles = monProfil.heros || [];
-  if (herosDisponibles.length === 0) {
-    afficherToast("Recrute un héros avant d'attaquer.");
-    return;
-  }
+  if (herosDisponibles.length === 0) { afficherToast("Recrute un héros avant d'attaquer."); return; }
   const modal = document.getElementById('hero-attaque-modal');
   let html = `<h3>Choisis le héros qui mène l'attaque</h3>`;
   herosDisponibles.forEach((h, i) => {
-    html += `<div class="strategie-row"><div class="info"><h4>${h.icon} ${h.nom} ${"⭐".repeat(h.etoiles)}</h4><span>Att ${h.attaque} / Déf ${h.defense}</span></div><button onclick="selectionnerHeroAttaque(${i})" class="btn-sm" style="background:var(--gold);color:#0a061d;">Choisir</button></div>`;
+    const stats = calculerStatsHeroAvecEquipements(h);
+    html += `<div class="strategie-row"><div class="info"><h4>${h.icon} ${h.nom} ${"⭐".repeat(h.etoiles)}</h4><span>Att ${stats.attaque} / Déf ${stats.defense}</span></div><button onclick="selectionnerHeroAttaque(${i})" class="btn-sm">Choisir</button></div>`;
   });
   html += `<button onclick="fermerSelectionHeroAttaque()" class="close-btn">Annuler</button>`;
   modal.innerHTML = html;
@@ -545,20 +567,14 @@ window.selectionnerHeroAttaque = function(index) {
   const depart = MARQUEURS_MONDE.find(m => m.type === 'mine-city') || { x: 900, y: 1020 };
   let arrivee = { x: cibleAttaque.x, y: cibleAttaque.y };
   if (!arrivee.x || !arrivee.y) {
-    if (cibleAttaque.type === 'pnj' || cibleAttaque.type === 'pnj-ville') {
-      const marqueur = MARQUEURS_MONDE.find(m => m.nom === cibleAttaque.nom);
-      if (marqueur) arrivee = { x: marqueur.x, y: marqueur.y };
-    } else if (cibleAttaque.type === 'joueur') {
-      arrivee = positionJoueur(cibleAttaque.id);
-    }
+    if (cibleAttaque.type === 'joueur') arrivee = positionJoueur(cibleAttaque.id);
   }
   const distance = Math.round(Math.hypot(arrivee.x - depart.x, arrivee.y - depart.y));
   const duree = Math.max(1, Math.round(distance / 100));
   const box = document.getElementById('attaqueTroupes');
   let html = `<div style="background:rgba(0,0,0,0.3);border-radius:10px;padding:8px;margin-bottom:12px;">`;
   html += `<p style="color:var(--gold);font-weight:bold;">📍 Distance : ${distance} cases</p>`;
-  html += `<p>⏱️ Durée estimée : ${duree}s</p>`;
-  html += `</div>`;
+  html += `<p class="hint">⏱️ Durée estimée : ${duree}s</p></div>`;
   html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;">';
   for (const [key, def] of Object.entries(DEFS_TROUPES)) {
     html += `<div style="text-align:center;background:rgba(0,0,0,0.3);border:1px solid #3a2d63;border-radius:10px;padding:8px;"><i class="fas ${def.icon}" style="color:var(--gold);font-size:18px;"></i><div style="font-size:11px;margin-top:4px;">${def.nom}</div><div style="font-size:13px;font-weight:bold;color:#6ee7b7;">${monProfil.troupes[key]||0} dispo</div></div>`;
@@ -568,21 +584,23 @@ window.selectionnerHeroAttaque = function(index) {
   document.getElementById('attaqueTitle').innerText = `⚔️ Attaquer ${cibleAttaque.nom}`;
   toggleTiroir('attaque');
 };
-window.fermerSelectionHeroAttaque = function() {
-  document.getElementById('hero-attaque-backdrop').style.display = 'none';
-};
+window.fermerSelectionHeroAttaque = function() { document.getElementById('hero-attaque-backdrop').style.display = 'none'; };
 
-// ==================== COMBAT ====================
+// ==================== COMBAT : FORCES ====================
 function bonusMeneur(profil) {
-  const idx = profil.heroAttaqueIndex !== undefined ? profil.heroAttaqueIndex : profil.meneurIndex;
+  const idx = profil.heroAttaqueIndex !== undefined && profil.heroAttaqueIndex !== null ? profil.heroAttaqueIndex : profil.meneurIndex;
   if (idx !== null && idx !== undefined && profil.heros && profil.heros[idx]) {
-    const hero = profil.heros[idx];
-    const stats = calculerStatsHeroAvecEquipements(hero);
+    const stats = calculerStatsHeroAvecEquipements(profil.heros[idx]);
     return { attaque: stats.attaque, defense: stats.defense };
   }
   return { attaque: 0, defense: 0 };
 }
-
+// Bonus de butin du héros meneur/attaquant (compétence "butin")
+function bonusButin(profil) {
+  const idx = profil.heroAttaqueIndex !== undefined && profil.heroAttaqueIndex !== null ? profil.heroAttaqueIndex : profil.meneurIndex;
+  const h = (profil.heros || [])[idx];
+  return (h?.competence?.type === 'butin') ? (1 + h.competence.valeur) : 1;
+}
 function forceAttaque(profil) {
   const base = Object.entries(profil.troupes || {}).reduce((s, [k, n]) => s + n * (DEFS_TROUPES[k]?.attaque || 0), 0);
   const bonusTech = bonusTechnologie(profil, 'forge1') ? 1.15 : 1;
@@ -594,10 +612,8 @@ function forceDefense(profil) {
   const bonusTech = bonusTechnologie(profil, 'fortif1') ? 1.15 : 1;
   return Math.round((base + niveauMirador * 10 + bonusMeneur(profil).defense) * bonusTech);
 }
-
 function appliquerSetsAttaquant(attaque) {
-  const hero = monProfil.heros[monProfil.heroAttaqueIndex];
-  if (!hero) return attaque;
+  const hero = (monProfil.heros || [])[monProfil.heroAttaqueIndex];
   const setsActifs = calculerSetActifs(hero);
   for (const [nomSet, niveau] of Object.entries(setsActifs)) {
     if (nomSet === 'Berserker' && niveau >= 3) attaque = Math.round(attaque * 1.15);
@@ -605,10 +621,10 @@ function appliquerSetsAttaquant(attaque) {
   }
   return attaque;
 }
+// 🔧 CORRIGÉ : accès à defenseur.heros[idx] sans garde plantait si le défenseur n'avait aucun héros.
 function appliquerSetsDefenseur(profil, defense) {
   const idx = profil.meneurIndex || 0;
-  const hero = profil.heros[idx];
-  if (!hero) return defense;
+  const hero = (profil.heros || [])[idx];
   const setsActifs = calculerSetActifs(hero);
   for (const [nomSet, niveau] of Object.entries(setsActifs)) {
     if (nomSet === 'Paladin' && niveau >= 3) defense = Math.round(defense * 1.25);
@@ -617,60 +633,90 @@ function appliquerSetsDefenseur(profil, defense) {
   return defense;
 }
 
+// ==================== 🆕 STRATÉGIES (restaurées : Faillite Temporelle, Contre-Offensive, etc.) ====================
+const NOMS_STRATEGIES = {
+  mecontentement: { nom: "🌱 Graine de Mécontentement", desc: "S'utilise depuis le profil d'une ville adverse : réduit sa production de moitié 6h." },
+  brusque: { nom: "⚡ Attaque Brusque", desc: "S'active automatiquement à ta prochaine attaque (+20% force)." },
+  contreOffensive: { nom: "🛡️ Contre-Offensive", desc: "Active un bouclier de 12h qui réduit de 20% la force de tout attaquant." },
+  faillite: { nom: "⏳ Faillite Temporelle", desc: "Achetée à l'avance — annule automatiquement les pertes de ta prochaine défaite subie." }
+};
+function afficherMesStrategies() {
+  const box = document.getElementById('mesStrategiesListe');
+  if (!box) return;
+  const s = monProfil.strategies || {};
+  const actives = Object.entries(NOMS_STRATEGIES).filter(([k]) => (s[k] || 0) > 0);
+  if (actives.length === 0) { box.innerHTML = `<p class="hint">Aucune stratégie en stock — achète-en dans la boutique ci-dessous.</p>`; return; }
+  box.innerHTML = actives.map(([k, info]) => {
+    const bouton = k === 'contreOffensive' ? `<button onclick="activerContreOffensive()" class="btn-sm">Activer</button>` : '';
+    return `<div class="strategie-row"><div class="info"><h4>${info.nom} <span style="color:#6ee7b7;">(${s[k]})</span></h4><span>${info.desc}</span></div>${bouton}</div>`;
+  }).join('');
+  if (monProfil.contreOffensifFin > Date.now()) box.innerHTML += `<p style="color:#6ee7b7;font-size:11px;margin-top:6px;">🛡️ Contre-Offensive active encore ${Math.ceil((monProfil.contreOffensifFin - Date.now()) / 3600000)}h.</p>`;
+}
+window.activerContreOffensive = async function() {
+  if ((monProfil.strategies?.contreOffensive || 0) < 1) return;
+  monProfil.strategies.contreOffensive -= 1;
+  monProfil.contreOffensifFin = Date.now() + 12 * 3600000;
+  await sauvegarder({ strategies: monProfil.strategies, contreOffensifFin: monProfil.contreOffensifFin });
+  afficherToast("🛡️ Contre-Offensive activée pour 12h !");
+  afficherMesStrategies();
+};
+window.utiliserMecontentement = async function(idCible, pseudoCible) {
+  if ((monProfil.strategies?.mecontentement || 0) < 1) return;
+  monProfil.strategies.mecontentement -= 1;
+  await sauvegarder({ strategies: monProfil.strategies });
+  await updateDoc(doc(db, COL, idCible), { malusProductionFin: Date.now() + 6 * 3600000 });
+  afficherToast(`🌱 Graine de Mécontentement semée chez ${pseudoCible} ! Production réduite 6h.`);
+  ajouterAuJournal(`🌱 ${monProfil.pseudo} a semé le mécontentement chez ${pseudoCible} !`);
+  fermerProfilVille();
+};
+window.ouvrirListeStrategies = function(idCible, pseudoCible) {
+  const s = monProfil.strategies || {};
+  const modal = document.getElementById('profil-ville-modal');
+  let html = `<h3 style="color:var(--gold);font-size:18px;margin-bottom:12px;">🎴 Tes stratégies</h3>`;
+  const actives = Object.entries(NOMS_STRATEGIES).filter(([k]) => (s[k] || 0) > 0);
+  if (actives.length === 0) html += `<p class="hint">Tu n'as aucune stratégie en stock. Achète-en dans Articles.</p>`;
+  else actives.forEach(([k, info]) => {
+    let bouton = `<span style="font-size:10px;color:#9ca3af;">Automatique</span>`;
+    if (k === 'mecontentement') bouton = `<button onclick="utiliserMecontentement('${idCible}','${pseudoCible}')" class="btn-sm">Utiliser</button>`;
+    if (k === 'contreOffensive') bouton = `<button onclick="activerContreOffensive(); ouvrirProfilVille('${idCible}');" class="btn-sm">Activer</button>`;
+    html += `<div class="strategie-row"><div class="info"><h4>${info.nom} <span style="color:#6ee7b7;">(${s[k]})</span></h4><span>${info.desc}</span></div>${bouton}</div>`;
+  });
+  html += `<button class="close-btn" onclick="ouvrirProfilVille('${idCible}')">← Retour</button>`;
+  modal.innerHTML = html;
+};
+
 // ==================== DÉPLACEMENT DES TROUPES (animation sur la carte) ====================
 function deplacerTroupes(cible) {
   return new Promise((resolve) => {
     const depart = MARQUEURS_MONDE.find(m => m.type === 'mine-city') || { x: 900, y: 1020 };
     let arrivee = { x: cible.x, y: cible.y };
     if (!arrivee.x || !arrivee.y) {
-      if (cible.type === 'pnj' || cible.type === 'pnj-ville') {
-        const marqueur = MARQUEURS_MONDE.find(m => m.nom === cible.nom);
-        if (marqueur) arrivee = { x: marqueur.x, y: marqueur.y };
-      } else if (cible.type === 'joueur') {
-        arrivee = positionJoueur(cible.id);
-      }
+      if (cible.type === 'joueur') arrivee = positionJoueur(cible.id);
+      else arrivee = { x: depart.x + 200, y: depart.y + 200 };
     }
-    const canvas = document.getElementById('map-canvas');
+    const vitesseHero = (monProfil.heros || [])[monProfil.heroAttaqueIndex]?.competence;
+    const rapide = vitesseHero && vitesseHero.type === 'vitesse';
+    const c = document.getElementById('map-canvas');
     const icone = document.createElement('div');
-    icone.style.position = 'absolute';
-    icone.style.left = depart.x + 'px';
-    icone.style.top = depart.y + 'px';
-    icone.style.width = '40px';
-    icone.style.height = '40px';
-    icone.style.background = 'rgba(0,0,0,0.7)';
-    icone.style.border = '2px solid var(--gold)';
-    icone.style.borderRadius = '50%';
-    icone.style.display = 'flex';
-    icone.style.alignItems = 'center';
-    icone.style.justifyContent = 'center';
-    icone.style.fontSize = '24px';
-    icone.style.zIndex = '80';
+    icone.style.cssText = `position:absolute;left:${depart.x}px;top:${depart.y}px;width:36px;height:36px;background:rgba(0,0,0,0.7);border:2px solid var(--gold);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;z-index:80;`;
     icone.innerText = '🐎';
-    canvas.appendChild(icone);
-
+    c.appendChild(icone);
     const distance = Math.hypot(arrivee.x - depart.x, arrivee.y - depart.y);
-    const duree = Math.max(1000, Math.min(4000, distance * 2));
+    let duree = Math.max(900, Math.min(3500, distance * 1.6));
+    if (rapide) duree *= (1 - (vitesseHero.valeur || 0.3));
     const debut = Date.now();
-
     function animer() {
-      const maintenant = Date.now();
-      const progression = Math.min(1, (maintenant - debut) / duree);
-      const x = depart.x + (arrivee.x - depart.x) * progression;
-      const y = depart.y + (arrivee.y - depart.y) * progression;
-      icone.style.left = x + 'px';
-      icone.style.top = y + 'px';
-      if (progression < 1) {
-        requestAnimationFrame(animer);
-      } else {
-        icone.remove();
-        resolve();
-      }
+      const progression = Math.min(1, (Date.now() - debut) / duree);
+      icone.style.left = (depart.x + (arrivee.x - depart.x) * progression) + 'px';
+      icone.style.top = (depart.y + (arrivee.y - depart.y) * progression) + 'px';
+      if (progression < 1) requestAnimationFrame(animer);
+      else { icone.remove(); resolve(); }
     }
     animer();
   });
 }
 
-// ==================== COMBAT ANIMÉ (simple, barres de vie) ====================
+// ==================== COMBAT ANIMÉ (barres de vie) ====================
 let _combatAnimeResolve = null;
 function animerCombat(nomMoi, avatarMoi, nomAdv, avatarAdv, victoire) {
   return new Promise((resolve) => {
@@ -681,32 +727,27 @@ function animerCombat(nomMoi, avatarMoi, nomAdv, avatarAdv, victoire) {
     document.getElementById('combatAvatarAdv').innerText = avatarAdv || '👹';
     document.getElementById('combatNomMoi').innerText = nomMoi;
     document.getElementById('combatNomAdv').innerText = nomAdv;
-    const barMoi = document.getElementById('combatPvMoi');
-    const barAdv = document.getElementById('combatPvAdv');
-    barMoi.style.width = '100%';
-    barAdv.style.width = '100%';
+    const barMoi = document.getElementById('combatPvMoi'), barAdv = document.getElementById('combatPvAdv');
+    const log = document.getElementById('combatLogAnime');
+    barMoi.style.width = '100%'; barAdv.style.width = '100%';
+    log.innerText = "⚔️ Le combat commence...";
     backdrop.style.display = 'flex';
-
-    let pvMoi = 100, pvAdv = 100;
+    let pvMoi = 100, pvAdv = 100, round = 0;
     const interval = setInterval(() => {
-      if (victoire) {
-        pvAdv -= 10;
-        pvMoi -= 3;
-      } else {
-        pvMoi -= 10;
-        pvAdv -= 3;
-      }
-      barMoi.style.width = Math.max(0, pvMoi) + '%';
-      barAdv.style.width = Math.max(0, pvAdv) + '%';
-
-      if (pvMoi <= 0 || pvAdv <= 0) {
+      round++;
+      const dMoi = victoire ? (8 + Math.random()*8) : (16 + Math.random()*10);
+      const dAdv = victoire ? (16 + Math.random()*10) : (8 + Math.random()*8);
+      pvAdv = Math.max(round >= 6 && victoire ? 0 : 4, pvAdv - dMoi);
+      pvMoi = Math.max(round >= 6 && !victoire ? 0 : 4, pvMoi - dAdv);
+      barMoi.style.width = pvMoi + '%'; barAdv.style.width = pvAdv + '%';
+      log.innerText += `\nRound ${round} : tu infliges ${Math.round(dMoi)}, tu subis ${Math.round(dAdv)}.`;
+      log.scrollTop = log.scrollHeight;
+      if (round >= 6 || pvMoi <= 4 || pvAdv <= 4) {
         clearInterval(interval);
-        setTimeout(() => {
-          backdrop.style.display = 'none';
-          if (_combatAnimeResolve) { _combatAnimeResolve(); _combatAnimeResolve = null; }
-        }, 800);
+        log.innerText += victoire ? "\n\n🏆 Victoire !" : "\n\n💀 Défaite...";
+        setTimeout(() => { backdrop.style.display = 'none'; if (_combatAnimeResolve) { _combatAnimeResolve(); _combatAnimeResolve = null; } }, 900);
       }
-    }, 120);
+    }, 650);
   });
 }
 window.passerCombat = function() {
@@ -718,22 +759,17 @@ window.passerCombat = function() {
 function afficherToast(msg) {
   const t = document.getElementById('toast');
   if (!t) return;
-  t.innerText = msg;
-  t.style.display = 'block';
+  t.innerText = msg; t.style.display = 'block';
   clearTimeout(t._timer);
-  t._timer = setTimeout(() => t.style.display = 'none', 2400);
+  t._timer = setTimeout(() => t.style.display = 'none', 2600);
 }
-
 function afficherButin(orGagne, boisGagne, pierreGagne, ferGagne, objetsGagnes) {
   const modal = document.getElementById('build-modal');
-  let html = `<h3>🏆 Victoire !</h3>`;
-  html += `<p>🪙 Or : +${orGagne}</p>`;
+  let html = `<h3>🏆 Victoire !</h3><p>🪙 Or : +${orGagne}</p>`;
   if (boisGagne) html += `<p>🪵 Bois : +${boisGagne}</p>`;
   if (pierreGagne) html += `<p>🪨 Pierre : +${pierreGagne}</p>`;
   if (ferGagne) html += `<p>⛓️ Fer : +${ferGagne}</p>`;
-  if (objetsGagnes && objetsGagnes.length) {
-    html += `<p>🎒 Objets obtenus : ${objetsGagnes.join(', ')}</p>`;
-  }
+  if (objetsGagnes && objetsGagnes.length) html += `<p>🎒 ${objetsGagnes.join(', ')}</p>`;
   html += `<button class="close-btn" onclick="fermerModal()">Fermer</button>`;
   modal.innerHTML = html;
   document.getElementById('build-modal-backdrop').style.display = 'flex';
@@ -745,45 +781,52 @@ window.lancerAttaque = async function() {
   if (total === 0) { afficherToast("⛔ Entraîne des troupes d'abord."); return; }
   let monAttaque = forceAttaque(monProfil);
   monAttaque = appliquerSetsAttaquant(monAttaque);
+  // 🆕 Attaque Brusque : consommée automatiquement si en stock
+  let noteStrategie = "";
+  if ((monProfil.strategies?.brusque || 0) > 0) {
+    monProfil.strategies.brusque -= 1;
+    monAttaque = Math.round(monAttaque * 1.2);
+    noteStrategie += " ⚡ Attaque Brusque utilisée (+20%) !";
+    await sauvegarder({ strategies: monProfil.strategies });
+  }
+
   let victoire;
+  let defenseur = null;
   if (cibleAttaque.type === 'pnj' || cibleAttaque.type === 'pnj-ville') {
     victoire = monAttaque >= cibleAttaque.force;
   } else {
     const snap = await getDoc(doc(db, COL, cibleAttaque.id));
     if (!snap.exists()) { afficherToast("Ce joueur n'existe plus."); return; }
-    const defenseur = snap.data();
+    defenseur = snap.data();
     if (defenseur.village?.bouclierFin > Date.now()) { afficherToast("🛡️ Ville protégée par un bouclier."); return; }
     let sonDefense = forceDefense(defenseur);
     sonDefense = appliquerSetsDefenseur(defenseur, sonDefense);
+    // 🆕 Contre-Offensive du défenseur : -20% à l'attaquant si active
+    if (defenseur.contreOffensifFin > Date.now()) { monAttaque = Math.round(monAttaque * 0.8); noteStrategie += " 🛡️ Contre-Offensive du défenseur (-20% à ton attaque) !"; }
     victoire = monAttaque * (0.85 + Math.random() * 0.3) >= sonDefense;
-    const heroAttaquant = monProfil.heros[monProfil.heroAttaqueIndex];
+
+    const heroAttaquant = (monProfil.heros || [])[monProfil.heroAttaqueIndex];
     const setsAttaquant = calculerSetActifs(heroAttaquant);
     if (!victoire && setsAttaquant['Faille Temporelle'] === 5) {
       victoire = (monAttaque + 80) >= sonDefense;
-      afficherToast("⏳ Faille Temporelle activée ! Le combat recommence avec +80 de force.");
+      afficherToast("⏳ Set Faille Temporelle activé ! Le combat recommence avec +80 de force.");
     }
-    const heroDefenseur = defenseur.heros[defenseur.meneurIndex || 0];
+    const heroDefenseur = (defenseur.heros || [])[defenseur.meneurIndex || 0];
     const setsDefenseur = calculerSetActifs(heroDefenseur);
-    if (victoire && setsDefenseur['Lion'] === 3) {
-      victoire = false;
-      afficherToast("🛡️ Immortalité du défenseur : il survit avec 1 PV !");
-    }
+    if (victoire && setsDefenseur['Lion'] === 3) { victoire = false; afficherToast("🛡️ Immortalité du défenseur : il survit avec 1 PV !"); }
   }
 
   await deplacerTroupes(cibleAttaque);
-  await animerCombat(monProfil.pseudo, monProfil.avatar, cibleAttaque.nom, cibleAttaque.type === 'pnj' || cibleAttaque.type === 'pnj-ville' ? '👹' : '🏰', victoire);
+  await animerCombat(monProfil.pseudo, monProfil.avatar, cibleAttaque.nom, cibleAttaque.type === 'joueur' ? '🏰' : '👹', victoire);
 
   if (victoire) {
     if (cibleAttaque.type === 'pnj' || cibleAttaque.type === 'pnj-ville') {
-      const butinOr = 20 + Math.floor(cibleAttaque.force * 0.2);
+      const multButin = bonusButin(monProfil) * (bonusTechnologie(monProfil, 'commerce1') ? 1.1 : 1);
+      const butinOr = Math.round((20 + Math.floor(cibleAttaque.force * 0.2)) * multButin);
       const butinBois = Math.floor(cibleAttaque.force * 0.3);
       const butinPierre = Math.floor(cibleAttaque.force * 0.25);
       const butinFer = Math.floor(cibleAttaque.force * 0.15);
-      monProfil.or += butinOr;
-      monProfil.ressources.bois += butinBois;
-      monProfil.ressources.pierre += butinPierre;
-      monProfil.ressources.fer += butinFer;
-      // Capture de héros PNJ
+      monProfil.or += butinOr; monProfil.ressources.bois += butinBois; monProfil.ressources.pierre += butinPierre; monProfil.ressources.fer += butinFer;
       let heroCaptureMsg = null;
       if (cibleAttaque.type === 'pnj-ville' && cibleAttaque.heroCapture && HEROS_PNJ[cibleAttaque.heroCapture]) {
         const chance = cibleAttaque.categorie === 'petite' ? 0.6 : 0.35;
@@ -795,35 +838,55 @@ window.lancerAttaque = async function() {
           afficherToast(heroCaptureMsg);
         }
       }
-      // Marquer monstre comme vaincu
-      if (cibleAttaque.nom.includes('monstre')) {
+      if (cibleAttaque.type === 'pnj' && cibleAttaque.nom.includes('monstre')) {
         monProfil.monstresVaincus.push(cibleAttaque.nom);
         await sauvegarder({ monstresVaincus: monProfil.monstresVaincus });
         rendreMondeCanvas();
       }
       await sauvegarder({ or: monProfil.or, ressources: monProfil.ressources });
       afficherButin(butinOr, butinBois, butinPierre, butinFer, heroCaptureMsg ? [heroCaptureMsg] : []);
+      ajouterAuJournal(`⚔️ ${monProfil.pseudo} a vaincu ${cibleAttaque.nom} et récupéré des matériaux !${noteStrategie}`);
     } else {
-      monProfil.prestige += 15;
-      await sauvegarder({ prestige: monProfil.prestige });
-      afficherToast("🏆 Victoire contre " + cibleAttaque.nom + " !");
+      // 🆕 Faillite Temporelle du défenseur : annule totalement les pertes, comme si l'attaque n'avait jamais eu lieu
+      if ((defenseur.strategies?.faillite || 0) > 0) {
+        defenseur.strategies.faillite -= 1;
+        await updateDoc(doc(db, COL, cibleAttaque.id), { strategies: defenseur.strategies });
+        afficherToast(`⏳ ${cibleAttaque.nom} a activé sa Faillite Temporelle ! Ton attaque n'a eu aucun effet.`);
+        ajouterAuJournal(`⏳ ${cibleAttaque.nom} a annulé l'attaque de ${monProfil.pseudo} grâce à une Faillite Temporelle !`);
+        majHUD(); fermerTiroir(); return;
+      }
+      const multButin = bonusButin(monProfil) * (bonusTechnologie(monProfil, 'commerce1') ? 1.1 : 1);
+      const butinOr = Math.min(defenseur.or || 0, Math.round(((defenseur.or||0) * 0.15 + 20) * multButin));
+      const butinBois = Math.min(defenseur.ressources.bois, Math.round(defenseur.ressources.bois * 0.15));
+      const butinPierre = Math.min(defenseur.ressources.pierre, Math.round(defenseur.ressources.pierre * 0.15));
+      defenseur.or -= butinOr; defenseur.ressources.bois -= butinBois; defenseur.ressources.pierre -= butinPierre;
+      defenseur.prestige = Math.max(0, (defenseur.prestige || 0) - 8);
+      reduireTroupes(defenseur.troupes, 0.1);
+      await updateDoc(doc(db, COL, cibleAttaque.id), { or: defenseur.or, ressources: defenseur.ressources, troupes: defenseur.troupes, prestige: defenseur.prestige });
+      monProfil.or += butinOr; monProfil.ressources.bois += butinBois; monProfil.ressources.pierre += butinPierre;
+      monProfil.prestige = (monProfil.prestige || 0) + 15;
+      await sauvegarder({ or: monProfil.or, ressources: monProfil.ressources, prestige: monProfil.prestige });
+      afficherGainFlottant(`🏆 +${butinOr}🪙`);
+      afficherToast(`🏆 Victoire contre ${cibleAttaque.nom} ! +${butinOr}🪙 +${butinBois}🪵 +${butinPierre}🪨${noteStrategie}`);
+      ajouterAuJournal(`⚔️ ${monProfil.pseudo} a attaqué ${cibleAttaque.nom} et remporté la bataille !${noteStrategie}`);
     }
+    verifierProgressionQuetes();
   } else {
-    reduireTroupes(monProfil.troupes, 0.2);
-    await sauvegarder({ troupes: monProfil.troupes });
-    afficherToast("💀 Défaite...");
+    if (defenseur === null) { reduireTroupes(monProfil.troupes, 0.15); await sauvegarder({ troupes: monProfil.troupes }); afficherToast(`💀 Défaite contre ${cibleAttaque.nom}...${noteStrategie}`); ajouterAuJournal(`💀 ${monProfil.pseudo} a été repoussé par ${cibleAttaque.nom}.`); }
+    else {
+      monProfil.prestige = Math.max(0, (monProfil.prestige || 0) - 5);
+      reduireTroupes(monProfil.troupes, 0.2);
+      await sauvegarder({ troupes: monProfil.troupes, prestige: monProfil.prestige });
+      afficherToast(`💀 Défaite face aux défenses de ${cibleAttaque.nom}...${noteStrategie}`);
+      ajouterAuJournal(`💀 ${monProfil.pseudo} a échoué à prendre ${cibleAttaque.nom}.`);
+    }
   }
   majHUD();
   fermerTiroir();
 };
-
 function reduireTroupes(troupes, ratio) {
   let perdues = 0;
-  Object.keys(troupes).forEach(k => {
-    const perte = Math.floor((troupes[k] || 0) * ratio);
-    troupes[k] = Math.max(0, (troupes[k] || 0) - perte);
-    perdues += perte;
-  });
+  Object.keys(troupes).forEach(k => { const perte = Math.floor((troupes[k] || 0) * ratio); troupes[k] = Math.max(0, (troupes[k] || 0) - perte); perdues += perte; });
   return perdues;
 }
 
@@ -841,7 +904,7 @@ function afficherRecherche() {
   box.innerHTML = TECHNOLOGIES.map(t => {
     const possede = bonusTechnologie(monProfil, t.id);
     const coutTxt = Object.entries(t.materiaux).map(([k, v]) => `${v}${k === 'bois' ? '🪵' : k === 'pierre' ? '🪨' : '⛓️'}`).join(' ');
-    return `<div class="item-card"><div class="info"><h4>${t.nom}</h4><span>${t.desc} — ${t.prix}🪙 + ${coutTxt}</span></div>${possede ? '<span style="color:#6ee7b7;font-size:11px;">✅ Recherché</span>' : `<button onclick="rechercherTech('${t.id}')" class="btn-sm" style="background:var(--gold);color:#0a061d;">Rechercher</button>`}</div>`;
+    return `<div class="item-card"><div class="info"><h4>${t.nom}</h4><span>${t.desc} — ${t.prix}🪙 + ${coutTxt}</span></div>${possede ? '<span style="color:#6ee7b7;font-size:11px;">✅ Recherché</span>' : `<button onclick="rechercherTech('${t.id}')" class="btn-sm">Rechercher</button>`}</div>`;
   }).join('');
 }
 window.rechercherTech = async function(id) {
@@ -858,22 +921,15 @@ window.rechercherTech = async function(id) {
 };
 
 // ==================== JOURNAL ====================
-async function ajouterAuJournal(texte) {
-  await addDoc(collection(db, COL_JOURNAL), { texte, date: serverTimestamp() });
-}
+async function ajouterAuJournal(texte) { await addDoc(collection(db, COL_JOURNAL), { texte, date: serverTimestamp() }); }
 let _dernieresEntreesJournal = [];
 let _indexTicker = 0, _intervalTicker = null;
 function demarrerJournal() {
   onSnapshot(query(collection(db, COL_JOURNAL), orderBy("date", "desc")), (snap) => {
     const box = document.getElementById('journalMessages');
     _dernieresEntreesJournal = [];
-    let html = "";
-    let c = 0;
-    snap.forEach(d => {
-      if (c++ >= 40) return;
-      _dernieresEntreesJournal.push(d.data().texte);
-      html += `<div class="chat-msg">📌 ${d.data().texte}</div>`;
-    });
+    let html = "", c = 0;
+    snap.forEach(d => { if (c++ >= 40) return; _dernieresEntreesJournal.push(d.data().texte); html += `<div class="chat-msg">📌 ${d.data().texte}</div>`; });
     if (box) box.innerHTML = html || `<p class="hint">Aucun événement pour l'instant.</p>`;
   });
   if (_intervalTicker) clearInterval(_intervalTicker);
@@ -891,11 +947,18 @@ window.ouvrirProfilVille = async function(id) {
   if (!snap.exists()) { afficherToast("Cette ville n'existe plus."); return; }
   const cible = snap.data();
   const pos = positionJoueur(id);
+  const puissance = calculerPuissanceDe(cible);
   const modal = document.getElementById('profil-ville-modal');
   modal.innerHTML = `
-    <h3>🏰 ${cible.nomVille || cible.pseudo}</h3>
-    <p>Seigneur : ${cible.pseudo}</p>
+    <h3 style="color:var(--gold);font-size:20px;">🏰 ${cible.nomVille || cible.pseudo}</h3>
+    <p style="color:#9ca3af;font-size:12px;margin-bottom:10px;">Seigneur : ${cible.pseudo}</p>
+    <div style="display:flex;justify-content:center;gap:18px;margin-bottom:14px;">
+      <div><div style="color:var(--gold);font-weight:bold;font-size:16px;">${puissance}</div><div style="font-size:10px;color:#9ca3af;">⚡ Puissance</div></div>
+      <div><div style="color:var(--gold);font-weight:bold;font-size:16px;">${cible.prestige||0}</div><div style="font-size:10px;color:#9ca3af;">🏆 Prestige</div></div>
+    </div>
+    ${cible.village?.bouclierFin > Date.now() ? '<p style="color:#6ee7b7;font-size:12px;margin-bottom:10px;">🛡️ Protégée par un bouclier.</p>' : ''}
     <button class="btn-secondary" style="width:100%;margin-bottom:8px;" onclick="espionnerJoueur('${id}')">🕵️ Espionner</button>
+    <button class="btn-secondary" style="width:100%;margin-bottom:8px;" onclick="ouvrirListeStrategies('${id}','${cible.pseudo}')">🎴 Utiliser une stratégie</button>
     <button class="btn-gold" onclick="ouvrirAttaque({type:'joueur', id:'${id}', nom:'${cible.pseudo}', x:${pos.x}, y:${pos.y}}); fermerProfilVille();">⚔️ Attaquer</button>
     <button class="close-btn" onclick="fermerProfilVille()">Fermer</button>
   `;
@@ -903,95 +966,38 @@ window.ouvrirProfilVille = async function(id) {
 };
 window.fermerProfilVille = function() { document.getElementById('profil-ville-backdrop').style.display = 'none'; };
 
+// 🔧 CORRIGÉ : une const locale nommée "forceDefense" masquait la fonction globale forceDefense() dans le même scope
+// → provoquait un ReferenceError (Cannot access before initialization) à chaque tentative d'espionnage. Renommée.
 window.espionnerJoueur = async function(id) {
   const cibleSnap = await getDoc(doc(db, COL, id));
   if (!cibleSnap.exists()) { afficherToast("Ce joueur n'existe plus."); return; }
   const cible = cibleSnap.data();
-  const defenseVille = forceDefense(cible);
   const niveauMirador = cible.batiments?.mirador || 0;
-  const forceEspion = monProfil.puissance || calculerPuissance();
-  const forceDefense = defenseVille + niveauMirador * 20;
+  const forceEspion = calculerPuissance();
+  const forceDefenseVille = forceDefense(cible) + niveauMirador * 20;
   const chanceInfiltration = Math.max(10, 80 - niveauMirador * 6);
   const infiltrationReussie = Math.random() * 100 <= chanceInfiltration;
-  let resultat;
+  let resultat, message;
   if (infiltrationReussie) {
     resultat = "infiltration";
-  } else {
-    const forceEspions = Math.round(forceEspion * 0.5);
-    const forceArmee = Math.round(forceDefense * 0.8);
-    if (forceEspions >= forceArmee) {
-      resultat = "combat_gagne";
-    } else {
-      resultat = "echec";
-    }
-  }
-  let message = "";
-  let infos = {};
-  if (resultat === "infiltration") {
-    infos = {
-      pseudo: cible.pseudo,
-      ville: cible.nomVille || cible.pseudo,
-      or: cible.or,
-      bois: cible.ressources.bois,
-      pierre: cible.ressources.pierre,
-      fer: cible.ressources.fer,
-      population: cible.populationMax,
-      moral: cible.moral,
-      troupes: cible.troupes,
-      heros: cible.heros,
-      equipements: cible.heros?.[0]?.equipements || [],
-      puissance: calculerPuissanceDe(cible)
-    };
     message = `🕵️ Rapport d'espionnage complet sur ${cible.pseudo} :\n\n` +
-      `Ville : ${infos.ville}\n` +
-      `Or : ${infos.or}\n` +
-      `Bois : ${infos.bois} | Pierre : ${infos.pierre} | Fer : ${infos.fer}\n` +
-      `Population max : ${infos.population}\n` +
-      `Moral : ${infos.moral}\n` +
-      `Troupes : ${JSON.stringify(infos.troupes)}\n` +
-      `Héros : ${infos.heros.map(h => h.icon + ' ' + h.nom + ' (⭐' + h.etoiles + ')').join(', ')}\n` +
-      `Équipements du héros principal : ${infos.equipements.join(', ') || 'aucun'}\n` +
-      `Puissance : ${infos.puissance}`;
+      `Ville : ${cible.nomVille || cible.pseudo}\nOr : ${cible.or}\n` +
+      `Bois : ${cible.ressources.bois} | Pierre : ${cible.ressources.pierre} | Fer : ${cible.ressources.fer}\n` +
+      `Moral : ${Math.round(cible.moral||0)}\nPuissance : ${calculerPuissanceDe(cible)}\n` +
+      `Héros : ${(cible.heros||[]).map(h => h.icon + ' ' + h.nom + ' (⭐' + h.etoiles + ')').join(', ') || 'aucun'}`;
     afficherToast("🕵️ Infiltration réussie ! Rapport envoyé par courrier.");
-  } else if (resultat === "combat_gagne") {
-    infos = {
-      pseudo: cible.pseudo,
-      ville: cible.nomVille || cible.pseudo,
-      or: Math.round(cible.or / 2),
-      bois: Math.round(cible.ressources.bois / 2),
-      pierre: Math.round(cible.ressources.pierre / 2),
-      fer: Math.round(cible.ressources.fer / 2),
-      population: cible.populationMax,
-      moral: cible.moral,
-      troupes: Object.fromEntries(Object.entries(cible.troupes).map(([k, v]) => [k, Math.round(v / 2)])),
-      heros: cible.heros.map(h => ({ nom: h.nom, icon: h.icon, etoiles: h.etoiles })),
-      equipements: cible.heros?.[0]?.equipements || [],
-      puissance: Math.round(calculerPuissanceDe(cible) / 2)
-    };
+  } else if (Math.round(forceEspion * 0.5) >= Math.round(forceDefenseVille * 0.8)) {
+    resultat = "combat_gagne";
     message = `🕵️ Rapport partiel sur ${cible.pseudo} (espions repérés mais victorieux) :\n\n` +
-      `Ville : ${infos.ville}\n` +
-      `Or (estimé) : ${infos.or}\n` +
-      `Bois : ${infos.bois} | Pierre : ${infos.pierre} | Fer : ${infos.fer}\n` +
-      `Population max : ${infos.population}\n` +
-      `Moral : ${infos.moral}\n` +
-      `Troupes (estimées) : ${JSON.stringify(infos.troupes)}\n` +
-      `Héros : ${infos.heros.map(h => h.icon + ' ' + h.nom + ' (⭐' + h.etoiles + ')').join(', ')}\n` +
-      `Équipements visibles : ${infos.equipements.join(', ') || 'aucun'}\n` +
-      `Puissance estimée : ${infos.puissance}`;
-    afficherToast("⚔️ Espions repérés mais combat gagné. Rapport partiel envoyé par courrier.");
+      `Ville : ${cible.nomVille || cible.pseudo}\nOr estimé : ${Math.round(cible.or/2)}\n` +
+      `Puissance estimée : ${Math.round(calculerPuissanceDe(cible)/2)}`;
+    afficherToast("⚔️ Espions repérés mais combat gagné. Rapport partiel envoyé.");
   } else {
+    resultat = "echec";
     message = `💀 Tes espions ont été découverts et éliminés par l'armée de ${cible.pseudo}. Aucune information obtenue.`;
     afficherToast("💀 Espionnage échoué.");
   }
-  await addDoc(collection(db, COL_COURRIER), {
-    expediteurId: "systeme",
-    expediteurPseudo: "🕵️ Service d'espionnage",
-    destinataireId: monId,
-    destinatairePseudo: monProfil.pseudo,
-    texte: message,
-    date: serverTimestamp(),
-    lu: false
-  });
+  await addDoc(collection(db, COL_COURRIER), { expediteurId: "systeme", expediteurPseudo: "🕵️ Service d'espionnage", destinataireId: monId, destinatairePseudo: monProfil.pseudo, texte: message, date: serverTimestamp(), lu: false });
   fermerProfilVille();
 };
 
@@ -1013,26 +1019,18 @@ async function calculerProductionTerritoires() {
     info.dernierCalcul = Date.now();
     await setDoc(doc(db, COL_TERRITOIRES, t.id), info);
   }
-  monProfil.ressources.bois += gains.bois;
-  monProfil.ressources.pierre += gains.pierre;
-  monProfil.ressources.fer += gains.fer;
-  monProfil.ressources.nourriture += gains.nourriture;
+  monProfil.ressources.bois += gains.bois; monProfil.ressources.pierre += gains.pierre; monProfil.ressources.fer += gains.fer; monProfil.ressources.nourriture += gains.nourriture;
   await sauvegarder({ ressources: monProfil.ressources });
-  if (gains.bois + gains.pierre + gains.fer + gains.nourriture > 0)
-    afficherToast(`🗺️ Territoires : +${gains.bois}🪵 +${gains.pierre}🪨 +${gains.fer}⛓️ +${gains.nourriture}🌾`);
+  if (gains.bois+gains.pierre+gains.fer+gains.nourriture > 0) afficherToast(`🗺️ Territoires : +${gains.bois}🪵 +${gains.pierre}🪨 +${gains.fer}⛓️ +${gains.nourriture}🌾`);
 }
 window.ouvrirProfilTerritoire = function(id) {
   const t = MARQUEURS_MONDE.find(m => m.id === id);
   const info = _territoiresPossedes[id];
   const modal = document.getElementById('profil-territoire-modal');
   let html = `<h3>${t.nomtype} (niv.${t.badge})</h3>`;
-  if (!info || !info.proprietaireId) {
-    html += `<p>Gardé par un gardien (force ${t.badge * 70}).</p><button class="btn-gold" onclick="attaquerTerritoire('${id}')">⚔️ Attaquer le Gardien</button>`;
-  } else if (info.proprietaireId === monId) {
-    html += `<p>🏳️ Ce territoire t'appartient.</p>`;
-  } else {
-    html += `<p>Contrôlé par ${info.proprietairePseudo}.</p><button class="btn-gold" onclick="attaquerTerritoire('${id}')">⚔️ Conquérir</button>`;
-  }
+  if (!info || !info.proprietaireId) html += `<p class="hint">Gardé par un gardien (force ${t.badge * 70}).</p><button class="btn-gold" onclick="attaquerTerritoire('${id}')">⚔️ Attaquer le Gardien</button>`;
+  else if (info.proprietaireId === monId) html += `<p style="color:#6ee7b7;">🏳️ Ce territoire t'appartient.</p>`;
+  else html += `<p class="hint">Contrôlé par ${info.proprietairePseudo}.</p><button class="btn-gold" onclick="attaquerTerritoire('${id}')">⚔️ Conquérir</button>`;
   html += `<button class="close-btn" onclick="fermerProfilTerritoire()">Fermer</button>`;
   modal.innerHTML = html;
   document.getElementById('profil-territoire-backdrop').style.display = 'flex';
@@ -1043,7 +1041,7 @@ window.attaquerTerritoire = async function(id) {
   const info = _territoiresPossedes[id];
   const monAttaque = forceAttaque(monProfil);
   let seuil;
-  if (!info || !info.proprietaireId) { seuil = t.badge * 70; }
+  if (!info || !info.proprietaireId) seuil = t.badge * 70;
   else { const propSnap = await getDoc(doc(db, COL, info.proprietaireId)); seuil = forceDefense(propSnap.data()); }
   const victoire = monAttaque * (0.85 + Math.random() * 0.3) >= seuil;
   await deplacerTroupes({ x: t.x, y: t.y });
@@ -1056,7 +1054,9 @@ window.attaquerTerritoire = async function(id) {
     monProfil.ressources[t.ressourceType] += gain;
     await sauvegarder({ ressources: monProfil.ressources });
     afficherToast(`🏁 Territoire conquis ! +${gain} ${t.ressourceType}`);
+    ajouterAuJournal(`🏁 ${monProfil.pseudo} a conquis ${t.nomtype} (niv.${t.badge}) !`);
     rendreMondeCanvas();
+    verifierProgressionQuetes();
   } else {
     reduireTroupes(monProfil.troupes, 0.1);
     await sauvegarder({ troupes: monProfil.troupes });
@@ -1071,10 +1071,7 @@ function demarrerChat() {
     const box = document.getElementById('chatMessages');
     if (!box) return;
     box.innerHTML = "";
-    snap.forEach(d => {
-      const m = d.data();
-      box.innerHTML += `<div class="chat-msg"><b>${m.pseudo} :</b> ${m.texte}</div>`;
-    });
+    snap.forEach(d => { const m = d.data(); box.innerHTML += `<div class="chat-msg"><b>${m.pseudo} :</b> ${m.texte}</div>`; });
     box.scrollTop = box.scrollHeight;
   });
 }
@@ -1089,11 +1086,27 @@ window.envoyerMessageChat = async function() {
 function calculerPuissanceDe(profil) {
   const niveauBatiments = Object.values(profil.batiments || {}).reduce((s, n) => s + n, 0);
   const nbTroupes = Object.values(profil.troupes || {}).reduce((s, n) => s + n, 0);
-  const nbEquipement = Object.values(profil.equipement || {}).reduce((s, n) => s + n, 0);
+  const nbEquipement = (profil.inventaireEquipement || []).length;
   const scoreHeros = (profil.heros || []).reduce((s, h) => s + h.etoiles * 30, 0);
-  return niveauBatiments * 25 + nbTroupes * 8 + nbEquipement * 40 + scoreHeros + Math.floor((profil.or || 0) / 10);
+  return niveauBatiments * 25 + nbTroupes * 8 + nbEquipement * 20 + scoreHeros + Math.floor((profil.or || 0) / 10);
 }
 function calculerPuissance() { return calculerPuissanceDe(monProfil); }
+
+// ==================== 🆕 CLASSEMENT DU ROYAUME ====================
+async function afficherClassement() {
+  const box = document.getElementById('classementListe');
+  if (!box) return;
+  box.innerHTML = `<p class="hint">Chargement...</p>`;
+  const snap = await getDocs(collection(db, COL));
+  let joueurs = [];
+  snap.forEach(d => joueurs.push({ id: d.id, ...d.data() }));
+  joueurs.sort((a, b) => calculerPuissanceDe(b) - calculerPuissanceDe(a));
+  box.innerHTML = joueurs.slice(0, 30).map((j, i) => {
+    const moi = j.id === monId;
+    const medaille = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i+1}`;
+    return `<div class="item-card" style="${moi ? 'border-color:var(--gold);' : ''}"><div class="info"><h4>${medaille} ${j.pseudo}${moi ? ' (toi)' : ''}</h4><span>⚡ Puissance : ${calculerPuissanceDe(j)} · 🏆 Prestige : ${j.prestige||0}</span></div></div>`;
+  }).join('');
+}
 
 // ==================== GAINS FLOTTANTS ====================
 function afficherGainFlottant(texte) {
@@ -1109,8 +1122,7 @@ function afficherGainFlottant(texte) {
 
 // ==================== CARTE ====================
 let vueActuelle = 'city';
-const canvas = document.getElementById('map-canvas');
-const viewport = document.getElementById('map-viewport');
+let canvas, viewport;
 
 function rendreVilleCanvas() {
   canvas.className = 'terrain-city';
@@ -1119,13 +1131,12 @@ function rendreVilleCanvas() {
     const niv = monProfil.batiments[b.id] || 1;
     const el = document.createElement('div');
     el.className = 'marker' + (b.capital ? ' capital' : '');
-    el.style.left = b.x + 'px';
-    el.style.top = b.y + 'px';
+    el.style.left = b.x + 'px'; el.style.top = b.y + 'px';
     el.onclick = () => {
       if (b.id === 'baraques') { toggleTiroir('baraques'); return; }
       if (b.id === 'rassemblement') { toggleTiroir('rassemblement'); return; }
-      if (b.id === 'forgeron') { toggleTiroir('forgeron'); return; }
-      if (b.id === 'senat') { ouvrirModal('senat', 'Sénat', 'fa-university', b.img); return; }
+      if (b.id === 'forgeron') { toggleTiroir('artisanat'); return; }
+      if (b.id === 'senat') { afficherSenat(); return; }
       ouvrirModal(b.id, b.nom, b.icon, b.img);
     };
     const icon = b.img ? `<img src="${b.img}" style="width:100%;height:100%;object-fit:cover;border-radius:8px;">` : `<i class="fas ${b.icon}"></i>`;
@@ -1134,14 +1145,9 @@ function rendreVilleCanvas() {
   });
 }
 
-const ICONES_TERRITOIRE = {
-  'Forêt': { emoji: '🌲', classe: 'foret' },
-  'Montagne': { emoji: '⛰️', classe: 'montagne' },
-  'Mine': { emoji: '💎', classe: 'montagne' },
-  'Champ': { emoji: '🌾', classe: 'marecage' },
-  'Marécage': { emoji: '🐊', classe: 'marecage' }
-};
+const ICONES_TERRITOIRE = { 'Forêt': { emoji: '🌲', classe: 'foret' }, 'Montagne': { emoji: '⛰️', classe: 'montagne' }, 'Mine': { emoji: '💎', classe: 'montagne' }, 'Champ': { emoji: '🌾', classe: 'marecage' }, 'Marécage': { emoji: '🐊', classe: 'marecage' } };
 
+let _autresJoueurs = [];
 function rendreMondeCanvas() {
   canvas.className = 'terrain-world';
   canvas.innerHTML = '';
@@ -1151,8 +1157,7 @@ function rendreMondeCanvas() {
       const deco = ICONES_TERRITOIRE[m.nomtype] || { emoji: '🗺️', classe: 'foret' };
       const el = document.createElement('div');
       el.className = 'territoire-marker';
-      el.style.left = m.x + 'px';
-      el.style.top = m.y + 'px';
+      el.style.left = m.x + 'px'; el.style.top = m.y + 'px';
       const statutClasse = info?.proprietaireId === monId ? 'possede-moi' : (info?.proprietaireId ? 'possede-autre' : '');
       el.onclick = () => ouvrirProfilTerritoire(m.id);
       el.innerHTML = `<div class="territoire-icone ${deco.classe} ${statutClasse}">${deco.emoji}</div><div class="territoire-label">${m.nomtype} ${info?.proprietaireId ? (info.proprietaireId === monId ? '(toi)' : '(' + info.proprietairePseudo + ')') : ''}</div>`;
@@ -1161,27 +1166,19 @@ function rendreMondeCanvas() {
     }
     if (m.type === 'monster') {
       const nomMonstre = 'le monstre niv.' + m.badge;
-      if (monProfil.monstresVaincus.includes(nomMonstre)) {
+      if ((monProfil.monstresVaincus || []).includes(nomMonstre)) {
         const el = document.createElement('div');
         el.className = 'wmarker';
-        el.style.left = m.x + 'px';
-        el.style.top = m.y + 'px';
+        el.style.left = m.x + 'px'; el.style.top = m.y + 'px';
         el.innerHTML = `<i class="fas fa-box-open wmarker-icon" style="color:#6ee7b7;"></i><div class="wmarker-label">Collecte</div>`;
-        el.onclick = () => {
-          monProfil.ressources.bois += 50;
-          monProfil.ressources.pierre += 30;
-          afficherToast('💎 Collecte récupérée !');
-          sauvegarder({ ressources: monProfil.ressources });
-          majHUD();
-        };
+        el.onclick = () => { monProfil.ressources.bois += 50; monProfil.ressources.pierre += 30; afficherToast('💎 Collecte récupérée !'); sauvegarder({ ressources: monProfil.ressources }); majHUD(); };
         canvas.appendChild(el);
         return;
       }
     }
     const el = document.createElement('div');
     el.className = 'wmarker';
-    el.style.left = m.x + 'px';
-    el.style.top = m.y + 'px';
+    el.style.left = m.x + 'px'; el.style.top = m.y + 'px';
     el.onclick = () => {
       if (m.type === 'mine-city') { allerVue('city'); afficherToast('🏛️ Entrée dans ta ville'); return; }
       if (m.type === 'monster') { ouvrirAttaque({ type: 'pnj', nom: 'le monstre niv.' + m.badge, force: m.badge * 60, x: m.x, y: m.y }); return; }
@@ -1189,24 +1186,24 @@ function rendreMondeCanvas() {
       if (m.type === 'grande-ville') { ouvrirAttaque({ type: 'pnj', nom: m.nom, force: m.badge * 80, grandeVille: true, x: m.x, y: m.y }); return; }
       if (m.type === 'pnj-ville') { ouvrirAttaque({ type: 'pnj-ville', nom: m.nom, force: m.force, x: m.x, y: m.y, heroCapture: m.heroCapture, categorie: m.categorie }); return; }
     };
-    if (m.type === 'mine-city') {
-      el.innerHTML = `<i class="fas ${m.icon} wmarker-icon mine-city"></i><div class="wmarker-label">${m.nom}</div>`;
-    } else if (m.type === 'grande-ville' || m.type === 'pnj-ville') {
-      el.innerHTML = `<div class="wmarker-badge monster" style="background:#7c3aed;">${m.badge}</div><i class="fas ${m.icon} wmarker-icon" style="color:var(--gold);"></i><div class="wmarker-label">${m.nom}</div>`;
-    } else {
-      el.innerHTML = `<div class="wmarker-badge monster">${m.badge}</div><i class="fas ${m.icon} wmarker-icon" style="color:#f87171;"></i>`;
-    }
+    if (m.type === 'mine-city') el.innerHTML = `<i class="fas ${m.icon} wmarker-icon mine-city"></i><div class="wmarker-label">${m.nom}</div>`;
+    else if (m.type === 'grande-ville' || m.type === 'pnj-ville') el.innerHTML = `<div class="wmarker-badge monster" style="background:#7c3aed;">${m.badge}</div><i class="fas ${m.icon} wmarker-icon" style="color:var(--gold);"></i><div class="wmarker-label">${m.nom}</div>`;
+    else el.innerHTML = `<div class="wmarker-badge monster">${m.badge}</div><i class="fas ${m.icon} wmarker-icon" style="color:#f87171;"></i>`;
     canvas.appendChild(el);
   });
 
+  // 🔧 CORRIGÉ : les royaumes 3D des autres joueurs n'avaient aucun style (classes CSS absentes) → maintenant définies dans style.css
   _autresJoueurs.forEach(j => {
     const pos = positionJoueur(j.id);
+    const puissance = calculerPuissanceDe(j);
+    const tier = puissance >= 1500 ? 'tier-or' : puissance >= 500 ? 'tier-argent' : '';
+    const echelle = (0.8 + (pos.y / 2800) * 0.45).toFixed(2);
     const el = document.createElement('div');
-    el.className = 'royaume-marker';
-    el.style.left = pos.x + 'px';
-    el.style.top = pos.y + 'px';
+    el.className = `royaume-marker ${tier}`;
+    el.style.left = pos.x + 'px'; el.style.top = pos.y + 'px';
+    el.style.transform = `translate(-50%, -100%) scale(${echelle})`;
     el.onclick = () => ouvrirProfilVille(j.id);
-    el.innerHTML = `<div class="royaume-3d"><div class="royaume-toit"></div><div class="royaume-tourelle gauche"></div><div class="royaume-tourelle droite"></div><div class="royaume-mur"></div><div class="royaume-ombre"></div></div><div class="royaume-label">${j.pseudo}</div><div class="royaume-puissance">⚡${calculerPuissanceDe(j)}</div>`;
+    el.innerHTML = `<div class="royaume-3d"><div class="royaume-toit"></div><div class="royaume-tourelle gauche"></div><div class="royaume-tourelle droite"></div><div class="royaume-mur"></div><div class="royaume-ombre"></div></div><div class="royaume-label">${j.pseudo}</div><div class="royaume-puissance">⚡${puissance}</div>`;
     canvas.appendChild(el);
   });
 }
@@ -1221,9 +1218,6 @@ function clampPan() {
   panY = Math.max(minY, Math.min(0, panY));
 }
 function appliquerPan() { canvas.style.transform = `translate(${panX}px, ${panY}px)`; }
-viewport.addEventListener('pointerdown', e => { dragging = true; viewport.classList.add('grabbing'); startX = e.clientX; startY = e.clientY; startPanX = panX; startPanY = panY; viewport.setPointerCapture(e.pointerId); });
-viewport.addEventListener('pointermove', e => { if (!dragging) return; panX = startPanX + (e.clientX - startX); panY = startPanY + (e.clientY - startY); clampPan(); appliquerPan(); });
-['pointerup', 'pointercancel', 'pointerleave'].forEach(evt => viewport.addEventListener(evt, () => { dragging = false; viewport.classList.remove('grabbing'); }));
 
 function allerVue(vue) {
   vueActuelle = vue;
@@ -1236,7 +1230,7 @@ window.toggleVue = function() {
   allerVue(vueActuelle === 'city' ? 'world' : 'city');
   afficherToast(vueActuelle === 'city' ? "🏛️ Retour à ta ville" : "🌍 Carte du monde");
 };
-function recentrerCarte() {
+window.recentrerCarte = function() {
   const vw = viewport.clientWidth, vh = viewport.clientHeight;
   if (vw === 0 || vh === 0) { setTimeout(recentrerCarte, 100); return; }
   if (vueActuelle === 'city') {
@@ -1248,7 +1242,7 @@ function recentrerCarte() {
     panY = -((monVillage ? monVillage.y : 900) - vh / 2);
   }
   clampPan(); appliquerPan();
-}
+};
 
 // ==================== TIROIRS & MODALES ====================
 let tiroirOuvert = null;
@@ -1262,15 +1256,16 @@ window.toggleTiroir = function(nom) {
   requestAnimationFrame(() => drawer.classList.add('slide-in'));
   document.getElementById('drawer-backdrop').style.display = 'block';
   tiroirOuvert = nom;
-  if (nom === 'baraques') creerListeTroupes();
+  if (nom === 'baraques') { mettreAJourPopulation(); creerListeTroupes(); }
   if (nom === 'recruter') { afficherMesHeros(); afficherRecrutementHeros(); }
   if (nom === 'rassemblement') creerRassemblement();
-  if (nom === 'forgeron') afficherForgeEquipement();
+  if (nom === 'artisanat') afficherForgeEquipement();
   if (nom === 'alliance') afficherAlliance();
-  if (nom === 'articles') { afficherArticles(); afficherBoutiqueEquipement(); afficherQuetes(); }
+  if (nom === 'articles') { afficherMesStrategies(); afficherArticles(); afficherBoutiqueEquipement(); afficherQuetes(); }
   if (nom === 'research') afficherRecherche();
   if (nom === 'courrier') rendreCourrier();
   if (nom === 'inventaire') afficherInventaire();
+  if (nom === 'classement') afficherClassement();
   if (nom === 'march') document.getElementById('marchList').innerHTML = `<p class="hint">Aucune armée en marche pour l'instant.</p>`;
 };
 window.fermerTiroir = function() {
@@ -1290,48 +1285,46 @@ function creerListeTroupes() {
 window.entrainer = async function(type) {
   const def = DEFS_TROUPES[type];
   const r = monProfil.ressources;
+  mettreAJourPopulation();
   if (monProfil.populationInactive < def.population) { afficherToast("⛔ Population inactive insuffisante."); return; }
   if (r.nourriture < def.cout.nourriture || r.bois < def.cout.bois || r.fer < def.cout.fer) {
     let manque = '';
-    if (r.nourriture < def.cout.nourriture) manque += `🌾 Nourriture manquante : ${def.cout.nourriture - r.nourriture} · `;
-    if (r.bois < def.cout.bois) manque += `🪵 Bois manquant : ${def.cout.bois - r.bois} · `;
-    if (r.fer < def.cout.fer) manque += `⛓️ Fer manquant : ${def.cout.fer - r.fer}`;
-    afficherToast(`⛔ Ressources insuffisantes. ${manque}`);
+    if (r.nourriture < def.cout.nourriture) manque += `🌾 ${Math.ceil(def.cout.nourriture - r.nourriture)} · `;
+    if (r.bois < def.cout.bois) manque += `🪵 ${Math.ceil(def.cout.bois - r.bois)} · `;
+    if (r.fer < def.cout.fer) manque += `⛓️ ${Math.ceil(def.cout.fer - r.fer)}`;
+    afficherToast(`⛔ Ressources insuffisantes : ${manque}`);
     return;
   }
-  r.nourriture -= def.cout.nourriture;
-  r.bois -= def.cout.bois;
-  r.fer -= def.cout.fer;
-  // Lancer l'entraînement
+  r.nourriture -= def.cout.nourriture; r.bois -= def.cout.bois; r.fer -= def.cout.fer;
   const finTimestamp = Date.now() + def.population * 10 * 1000;
   monProfil.entrainementsEnCours.push({ type, finTimestamp });
   await sauvegarder({ ressources: r, entrainementsEnCours: monProfil.entrainementsEnCours });
-  majHUD();
-  creerListeTroupes();
+  majHUD(); creerListeTroupes();
   afficherToast(`⚔️ Entraînement lancé : ${def.nom} (fini dans ${def.population * 10}s)`);
 };
-
 function verifierEntrainements() {
   if (!monProfil.entrainementsEnCours || monProfil.entrainementsEnCours.length === 0) return;
   const maintenant = Date.now();
   let change = false;
-  const nouveauxEntrainements = [];
+  const nouveaux = [];
   for (const e of monProfil.entrainementsEnCours) {
-    if (e.finTimestamp <= maintenant) {
-      monProfil.troupes[e.type] = (monProfil.troupes[e.type] || 0) + 1;
-      change = true;
-      afficherToast(`✅ Entraînement terminé : ${DEFS_TROUPES[e.type].nom} (+1)`);
-    } else {
-      nouveauxEntrainements.push(e);
-    }
+    if (e.finTimestamp <= maintenant) { monProfil.troupes[e.type] = (monProfil.troupes[e.type] || 0) + 1; change = true; afficherToast(`✅ Entraînement terminé : ${DEFS_TROUPES[e.type].nom} (+1)`); }
+    else nouveaux.push(e);
   }
   if (change) {
-    monProfil.entrainementsEnCours = nouveauxEntrainements;
+    monProfil.entrainementsEnCours = nouveaux;
     sauvegarder({ troupes: monProfil.troupes, entrainementsEnCours: monProfil.entrainementsEnCours });
-    mettreAJourPopulation();
-    majHUD();
-    creerListeTroupes();
+    mettreAJourPopulation(); majHUD(); creerListeTroupes();
   }
+}
+function creerRassemblement() {
+  const box = document.getElementById('rassemblementList');
+  let html = '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;">';
+  for (const [key, def] of Object.entries(DEFS_TROUPES)) {
+    html += `<div style="text-align:center;background:rgba(0,0,0,0.3);border:1px solid #3a2d63;border-radius:10px;padding:8px;"><i class="fas ${def.icon}" style="color:var(--gold);font-size:16px;"></i><div style="font-size:10px;margin-top:4px;">${def.nom}</div><div style="font-size:12px;font-weight:bold;color:#6ee7b7;">${monProfil.troupes[key]||0}</div></div>`;
+  }
+  html += `</div><p class="hint">Force totale : ${forceAttaque(monProfil)} attaque / ${forceDefense(monProfil)} défense.</p>`;
+  box.innerHTML = html;
 }
 
 // ==================== CONSTRUCTION ====================
@@ -1339,33 +1332,20 @@ function verifierConstructions() {
   if (!monProfil.constructionsEnCours || monProfil.constructionsEnCours.length === 0) return;
   const maintenant = Date.now();
   let change = false;
-  const nouvellesConstructions = [];
+  const nouvelles = [];
   for (const c of monProfil.constructionsEnCours) {
-    if (c.finTimestamp <= maintenant) {
-      monProfil.batiments[c.batId] = (monProfil.batiments[c.batId] || 1) + 1;
-      change = true;
-      afficherToast(`✅ Construction terminée : ${c.batId} niveau ${monProfil.batiments[c.batId]} !`);
-    } else {
-      nouvellesConstructions.push(c);
-    }
+    if (c.finTimestamp <= maintenant) { monProfil.batiments[c.batId] = (monProfil.batiments[c.batId] || 1) + 1; change = true; afficherToast(`✅ Construction terminée : ${c.batId} niveau ${monProfil.batiments[c.batId]} !`); }
+    else nouvelles.push(c);
   }
   if (change) {
-    monProfil.constructionsEnCours = nouvellesConstructions;
+    monProfil.constructionsEnCours = nouvelles;
     sauvegarder({ batiments: monProfil.batiments, constructionsEnCours: monProfil.constructionsEnCours });
-    mettreAJourPopulation();
-    majHUD();
-    rendreVilleCanvas();
-    verifierProgressionQuetes();
+    mettreAJourPopulation(); majHUD(); rendreVilleCanvas(); verifierProgressionQuetes();
   }
 }
-
 let cibleActuelle = null;
 const COUTS_AMELIORATION = (niv) => ({ or: (niv+1)*80, bois: (niv+1)*20, pierre: (niv+1)*15 });
 window.ouvrirModal = function(id, nom, icon, img) {
-  if (id === 'senat') {
-    afficherSenat();
-    return;
-  }
   cibleActuelle = id;
   const niv = monProfil.batiments[id] || 1;
   const cout = COUTS_AMELIORATION(niv);
@@ -1378,24 +1358,18 @@ window.fermerModal = function() { document.getElementById('build-modal-backdrop'
 window.ameliorer = async function() {
   if (!cibleActuelle) return;
   const batId = cibleActuelle;
-  if (monProfil.constructionsEnCours.some(c => c.batId === batId)) {
-    afficherToast("⏳ Ce bâtiment est déjà en construction.");
-    return;
-  }
+  if (monProfil.constructionsEnCours.some(c => c.batId === batId)) { afficherToast("⏳ Ce bâtiment est déjà en construction."); return; }
   const niv = monProfil.batiments[batId] || 1;
   const cout = COUTS_AMELIORATION(niv);
   const r = monProfil.ressources;
   if (monProfil.or < cout.or) { afficherToast(`⛔ Il faut ${cout.or}🪙.`); return; }
   if (r.bois < cout.bois) { afficherToast(`⛔ Il faut ${cout.bois}🪵.`); return; }
   if (r.pierre < cout.pierre) { afficherToast(`⛔ Il faut ${cout.pierre}🪨.`); return; }
-  monProfil.or -= cout.or;
-  r.bois -= cout.bois;
-  r.pierre -= cout.pierre;
+  monProfil.or -= cout.or; r.bois -= cout.bois; r.pierre -= cout.pierre;
   const finTimestamp = Date.now() + 30 * niv * 1000;
   monProfil.constructionsEnCours.push({ batId, finTimestamp });
   await sauvegarder({ or: monProfil.or, ressources: r, constructionsEnCours: monProfil.constructionsEnCours });
-  majHUD();
-  fermerModal();
+  majHUD(); fermerModal();
   afficherToast(`🏗️ Construction lancée : ${batId} (fini dans ${30 * niv}s)`);
 };
 
@@ -1430,28 +1404,24 @@ async function afficherAlliance() {
     const snap = await getDoc(doc(db, COL_ALLIANCES, monProfil.allianceId));
     if (!snap.exists()) { monProfil.allianceId = null; await sauvegarder({ allianceId: null }); afficherAlliance(); return; }
     const a = snap.data();
-    box.innerHTML = `<h4>${a.nom} — ${(a.membres||[]).length} membre(s)</h4><button class="btn-purple" onclick="quitterAlliance()">🚪 Quitter</button>`;
+    box.innerHTML = `<h4 style="color:var(--gold);">${a.nom} — ${(a.membres||[]).length} membre(s)</h4><button class="btn-purple" onclick="quitterAlliance()">🚪 Quitter</button>`;
   } else {
     const snap = await getDocs(collection(db, COL_ALLIANCES));
     let listeHtml = "";
     snap.forEach(d => { listeHtml += `<div class="item-card"><div class="info"><h4>${d.data().nom}</h4></div><button onclick="rejoindreAllianceExistante('${d.id}')" class="btn-sm">Rejoindre</button></div>`; });
-    box.innerHTML = `<button class="btn-gold" onclick="creerAlliance()">🆕 Fonder une alliance</button>${listeHtml || '<p>Aucune alliance</p>'}`;
+    box.innerHTML = `<button class="btn-gold" onclick="creerAlliance()">🆕 Fonder une alliance</button>${listeHtml || '<p class="hint">Aucune alliance pour l\'instant.</p>'}`;
   }
 }
 
 // ==================== COURRIER ====================
 let _courrierRecus = {}, _courrierEnvoyes = {};
 function demarrerCourrier() {
-  onSnapshot(query(collection(db, COL_COURRIER), where("destinataireId", "==", monId)), (snap) => {
-    _courrierRecus = {}; snap.forEach(d => _courrierRecus[d.id] = { id: d.id, ...d.data() });
-    rendreCourrier();
-  });
-  onSnapshot(query(collection(db, COL_COURRIER), where("expediteurId", "==", monId)), (snap) => {
-    _courrierEnvoyes = {}; snap.forEach(d => _courrierEnvoyes[d.id] = { id: d.id, ...d.data() });
-    rendreCourrier();
-  });
+  onSnapshot(query(collection(db, COL_COURRIER), where("destinataireId", "==", monId)), (snap) => { _courrierRecus = {}; snap.forEach(d => _courrierRecus[d.id] = { id: d.id, ...d.data() }); rendreCourrier(); });
+  onSnapshot(query(collection(db, COL_COURRIER), where("expediteurId", "==", monId)), (snap) => { _courrierEnvoyes = {}; snap.forEach(d => _courrierEnvoyes[d.id] = { id: d.id, ...d.data() }); rendreCourrier(); });
 }
 function rendreCourrier() {
+  const select = document.getElementById('destinataireCourrier');
+  if (select && select.options.length === 0) select.innerHTML = _autresJoueurs.map(j => `<option value="${j.id}">${j.pseudo}</option>`).join('');
   const box = document.getElementById('courrierListe');
   const tous = [...Object.values(_courrierRecus), ...Object.values(_courrierEnvoyes)];
   tous.sort((a, b) => (a.date?.toMillis?.() || 0) - (b.date?.toMillis?.() || 0));
@@ -1474,12 +1444,16 @@ const ARTICLES = [
   { id: "bouclier7j", nom: "🛡️ Bouclier 7 jours", desc: "Protège ta ville contre les attaques.", prix: 300 },
   { id: "boostProd", nom: "⚡ Boost production x2 (24h)", desc: "Double ta production automatique.", prix: 250 },
   { id: "sacRessources", nom: "📦 Sac de ressources", desc: "+200🪵 +200🪨 +100⛓️ immédiatement.", prix: 150 },
-  { id: "renommer", nom: "✏️ Renommer ta ville", desc: "Change le nom affiché de ta capitale.", prix: 100 }
+  { id: "renommer", nom: "✏️ Renommer ta ville", desc: "Change le nom affiché de ta capitale.", prix: 100 },
+  { id: "attaquebrusque", nom: "⚡ Attaque Brusque", desc: "+20% de force à ta prochaine attaque (auto).", prix: 150 },
+  { id: "contreoffensive", nom: "🛡️ Contre-Offensive", desc: "En stock — active-la depuis tes stratégies.", prix: 180 },
+  { id: "faillitetemporelle", nom: "⏳ Faillite Temporelle", desc: "En stock — annule ta prochaine défaite subie.", prix: 220 },
+  { id: "grainemecontentement", nom: "🌱 Graine de Mécontentement", desc: "En stock — s'utilise sur une ville adverse.", prix: 200 }
 ];
 function afficherArticles() {
   const box = document.getElementById('articlesListe');
   if (!box) return;
-  box.innerHTML = ARTICLES.map(a => `<div class="item-card"><div class="info"><h4>${a.nom}</h4><span>${a.desc}</span></div><button onclick="acheterArticle('${a.id}')" class="btn-sm" style="background:var(--gold);color:#0a061d;">${a.prix}🪙</button></div>`).join('');
+  box.innerHTML = ARTICLES.map(a => `<div class="item-card"><div class="info"><h4>${a.nom}</h4><span>${a.desc}</span></div><button onclick="acheterArticle('${a.id}')" class="btn-sm">${a.prix}🪙</button></div>`).join('');
 }
 window.acheterArticle = async function(id) {
   const article = ARTICLES.find(a => a.id === id);
@@ -1489,9 +1463,13 @@ window.acheterArticle = async function(id) {
   if (id === "boostProd") monProfil.boostProductionFin = Date.now() + 86400000;
   if (id === "sacRessources") { monProfil.ressources.bois += 200; monProfil.ressources.pierre += 200; monProfil.ressources.fer += 100; }
   if (id === "renommer") { const n = prompt("Nouveau nom de ta ville :", monProfil.nomVille || "Lyon"); if (n) monProfil.nomVille = n; else monProfil.or += article.prix; }
-  await sauvegarder({ or: monProfil.or, ressources: monProfil.ressources, boostProductionFin: monProfil.boostProductionFin, nomVille: monProfil.nomVille, village: monProfil.village });
+  if (id === "attaquebrusque") monProfil.strategies.brusque = (monProfil.strategies.brusque || 0) + 1;
+  if (id === "contreoffensive") monProfil.strategies.contreOffensive = (monProfil.strategies.contreOffensive || 0) + 1;
+  if (id === "faillitetemporelle") monProfil.strategies.faillite = (monProfil.strategies.faillite || 0) + 1;
+  if (id === "grainemecontentement") monProfil.strategies.mecontentement = (monProfil.strategies.mecontentement || 0) + 1;
+  await sauvegarder({ or: monProfil.or, ressources: monProfil.ressources, boostProductionFin: monProfil.boostProductionFin || null, nomVille: monProfil.nomVille, village: monProfil.village || null, strategies: monProfil.strategies });
   majHUD();
-  afficherArticles();
+  afficherArticles(); afficherMesStrategies();
 };
 
 // ==================== QUÊTES ====================
@@ -1504,11 +1482,7 @@ const QUETES = [
 ];
 function initialiserQuetesActives() {
   if (Object.keys(monProfil.quetes.actives).length === 0) {
-    QUETES.forEach(q => {
-      if (!monProfil.quetes.terminees.includes(q.id)) {
-        monProfil.quetes.actives[q.id] = 0;
-      }
-    });
+    QUETES.forEach(q => { if (!monProfil.quetes.terminees.includes(q.id)) monProfil.quetes.actives[q.id] = 0; });
   }
 }
 function verifierProgressionQuetes() {
@@ -1517,30 +1491,16 @@ function verifierProgressionQuetes() {
     if (monProfil.quetes.actives[quete.id] !== undefined) {
       let avancement = 0;
       switch (quete.objectif) {
-        case "batiment":
-          avancement = Object.values(monProfil.batiments).reduce((s, n) => Math.max(s, n), 0) - 1;
-          break;
-        case "monstres":
-          avancement = monProfil.quetes.actives[quete.id] || 0;
-          break;
-        case "bois":
-          avancement = monProfil.ressources.bois;
-          break;
-        case "heros":
-          avancement = monProfil.heros.length;
-          break;
-        case "territoire":
-          avancement = Object.values(_territoiresPossedes).filter(t => t.proprietaireId === monId).length;
-          break;
+        case "batiment": avancement = Object.values(monProfil.batiments).reduce((s, n) => Math.max(s, n), 0) - 1; break;
+        case "monstres": avancement = (monProfil.monstresVaincus || []).length; break;
+        case "bois": avancement = monProfil.ressources.bois; break;
+        case "heros": avancement = monProfil.heros.length; break;
+        case "territoire": avancement = Object.values(_territoiresPossedes).filter(t => t.proprietaireId === monId).length; break;
       }
-      if (avancement >= quete.cible && avancement !== monProfil.quetes.actives[quete.id]) {
-        monProfil.quetes.actives[quete.id] = avancement;
-        terminerQuete(quete.id);
-        changement = true;
-      }
+      if (avancement >= quete.cible && avancement !== monProfil.quetes.actives[quete.id]) { monProfil.quetes.actives[quete.id] = avancement; terminerQuete(quete.id); changement = true; }
     }
   }
-  if (changement) sauvegarder({ quetes: monProfil.quetes, inventaireQuetes: monProfil.inventaireQuetes });
+  if (changement) sauvegarder({ quetes: monProfil.quetes });
 }
 async function terminerQuete(id) {
   const quete = QUETES.find(q => q.id === id);
@@ -1552,10 +1512,7 @@ async function terminerQuete(id) {
   if (quete.recompense.pierre) monProfil.ressources.pierre += quete.recompense.pierre;
   if (quete.recompense.fer) monProfil.ressources.fer += quete.recompense.fer;
   if (quete.recompense.prestige) monProfil.prestige += quete.recompense.prestige;
-  if (quete.recompense.hero) {
-    const h = HEROS_RECRUTABLES.find(x => x.nom === quete.recompense.hero);
-    if (h) monProfil.heros.push({ ...h });
-  }
+  if (quete.recompense.hero) { const h = HEROS_RECRUTABLES.find(x => x.nom === quete.recompense.hero); if (h) monProfil.heros.push({ ...h, equipements: [] }); }
   afficherToast(`✅ Quête terminée : ${quete.nom} !`);
   ajouterAuJournal(`✅ ${monProfil.pseudo} a terminé la quête "${quete.nom}".`);
   majHUD();
@@ -1573,27 +1530,47 @@ function afficherQuetes() {
   box.innerHTML = html;
 }
 
+// ==================== 🆕 INVENTAIRE (manquait entièrement) ====================
+function afficherInventaire() {
+  const box = document.getElementById('inventaireListe');
+  if (!box) return;
+  const inv = monProfil.inventaireEquipement || [];
+  let html = "";
+  if (inv.length === 0) html += `<p class="hint">Aucun équipement possédé pour l'instant.</p>`;
+  else {
+    html += `<h4 style="color:var(--gold);margin-bottom:6px;">⚔️ Équipements</h4>`;
+    inv.forEach(id => {
+      const e = TOUS_EQUIPEMENTS.find(x => x.id === id);
+      if (!e) return;
+      const porteur = (monProfil.heros||[]).find(h => h.equipements && h.equipements.includes(id));
+      html += `<div class="item-card"><div class="info"><h4>${e.nom} (${e.rarete})</h4><span>Att +${e.att} / Déf +${e.def} — Set ${e.set}${porteur ? ' · porté par ' + porteur.nom : ''}</span></div></div>`;
+    });
+  }
+  const s = monProfil.strategies || {};
+  const stratsActives = Object.entries(NOMS_STRATEGIES).filter(([k]) => (s[k]||0) > 0);
+  if (stratsActives.length) {
+    html += `<h4 style="color:var(--gold);margin:10px 0 6px;">🎴 Stratégies</h4>`;
+    stratsActives.forEach(([k, info]) => { html += `<div class="item-card"><div class="info"><h4>${info.nom} (${s[k]})</h4><span>${info.desc}</span></div></div>`; });
+  }
+  box.innerHTML = html;
+}
+
 // ==================== SÉNAT ====================
 function afficherSenat() {
   mettreAJourPopulation();
+  const taux = calculerTauxProduction();
   const modal = document.getElementById('build-modal');
   let html = `<h3>🏛️ Sénat</h3>`;
-  html += `<p>Population max : ${monProfil.populationMax}</p>`;
-  html += `<p>Active (production) : ${monProfil.populationActive}</p>`;
-  html += `<p>Militaire : ${monProfil.populationMilitaire}</p>`;
-  html += `<p>Inactive : ${monProfil.populationInactive}</p>`;
-  html += `<p>Taux production : N ${calculerTauxProduction().nourriture.toFixed(1)}/h, B ${calculerTauxProduction().bois.toFixed(1)}/h, P ${calculerTauxProduction().pierre.toFixed(1)}/h, F ${calculerTauxProduction().fer.toFixed(1)}/h</p>`;
-  html += `<p>Moral : ${monProfil.moral} / 100</p>`;
-  html += `<p>Impôts : ${monProfil.tauxImpots}% <button onclick="changerImpots(1)" class="btn-sm">+</button> <button onclick="changerImpots(-1)" class="btn-sm">-</button></p>`;
-  html += `<h4>Héros fonctionnaire</h4>`;
-  if (monProfil.heros.length > 0) {
-    monProfil.heros.forEach((h, i) => {
-      const actif = monProfil.herosFonctionnaireIndex === i;
-      html += `<button onclick="assignerFonctionnaire(${i})" class="btn-sm" style="${actif ? 'background:var(--gold);color:#0a061d;' : ''}">${h.icon} ${h.nom} ${actif ? '✔' : ''}</button> `;
-    });
-  } else {
-    html += `<p>Aucun héros disponible.</p>`;
-  }
+  html += `<p style="font-size:13px;">Population max : ${monProfil.populationMax}</p>`;
+  html += `<p style="font-size:13px;">Active (production) : ${monProfil.populationActive}</p>`;
+  html += `<p style="font-size:13px;">Militaire : ${monProfil.populationMilitaire}</p>`;
+  html += `<p style="font-size:13px;">Inactive : ${monProfil.populationInactive}</p>`;
+  html += `<p style="font-size:12px;color:#9ca3af;">Taux/h : 🌾${taux.nourriture.toFixed(1)} 🪵${taux.bois.toFixed(1)} 🪨${taux.pierre.toFixed(1)} ⛓️${taux.fer.toFixed(1)}</p>`;
+  html += `<p style="font-size:13px;">Moral : ${Math.round(monProfil.moral)} / 100</p>`;
+  html += `<p style="font-size:13px;">Impôts : ${monProfil.tauxImpots}% <button onclick="changerImpots(1)" class="btn-sm" style="padding:3px 8px;">+</button> <button onclick="changerImpots(-1)" class="btn-sm" style="padding:3px 8px;">-</button></p>`;
+  html += `<h4 style="margin-top:10px;color:var(--gold);">Héros fonctionnaire</h4>`;
+  if (monProfil.heros.length > 0) monProfil.heros.forEach((h, i) => { const actif = monProfil.herosFonctionnaireIndex === i; html += `<button onclick="assignerFonctionnaire(${i})" class="btn-sm" style="${actif ? '' : 'background:rgba(255,255,255,0.15);color:var(--gold);'};margin:3px;">${h.icon} ${h.nom} ${actif ? '✔' : ''}</button> `; });
+  else html += `<p class="hint">Aucun héros disponible.</p>`;
   html += `<button class="close-btn" onclick="fermerModal()">Fermer</button>`;
   modal.innerHTML = html;
   document.getElementById('build-modal-backdrop').style.display = 'flex';
@@ -1611,196 +1588,13 @@ window.assignerFonctionnaire = async function(index) {
 
 // ==================== MODALS DYNAMIQUES ====================
 function creerModalsDynamiques() {
-  if (!document.getElementById('hero-equip-backdrop')) {
+  ['hero-equip', 'hero-attaque', 'tutoriel'].forEach(prefix => {
+    if (document.getElementById(prefix + '-backdrop')) return;
     const backdrop = document.createElement('div');
-    backdrop.id = 'hero-equip-backdrop';
-    backdrop.style.cssText = 'position:absolute;inset:0;z-index:75;display:none;background:rgba(0,0,0,0.55);align-items:flex-end;justify-content:center;';
-    backdrop.onclick = function(e) { if (e.target === this) fermerHeroPanel(); };
+    backdrop.id = prefix + '-backdrop';
+    backdrop.style.cssText = 'position:absolute;inset:0;z-index:' + (prefix === 'tutoriel' ? '90' : '75') + ';display:none;background:rgba(0,0,0,0.6);align-items:' + (prefix === 'tutoriel' ? 'center' : 'flex-end') + ';justify-content:center;';
     const modal = document.createElement('div');
-    modal.id = 'hero-equip-modal';
-    modal.style.cssText = 'width:100%;max-width:480px;background:linear-gradient(180deg,#1a1440,#0a061d);border-top:2px solid var(--gold);border-radius:18px 18px 0 0;padding:20px;text-align:center;';
-    backdrop.appendChild(modal);
-    document.getElementById('main-container').appendChild(backdrop);
-  }
-  if (!document.getElementById('hero-attaque-backdrop')) {
-    const backdrop = document.createElement('div');
-    backdrop.id = 'hero-attaque-backdrop';
-    backdrop.style.cssText = 'position:absolute;inset:0;z-index:75;display:none;background:rgba(0,0,0,0.55);align-items:flex-end;justify-content:center;';
-    backdrop.onclick = function(e) { if (e.target === this) fermerSelectionHeroAttaque(); };
-    const modal = document.createElement('div');
-    modal.id = 'hero-attaque-modal';
-    modal.style.cssText = 'width:100%;max-width:480px;background:linear-gradient(180deg,#1a1440,#0a061d);border-top:2px solid var(--gold);border-radius:18px 18px 0 0;padding:20px;text-align:center;';
-    backdrop.appendChild(modal);
-    document.getElementById('main-container').appendChild(backdrop);
-  }
-  if (!document.getElementById('tutoriel-backdrop')) {
-    const backdrop = document.createElement('div');
-    backdrop.id = 'tutoriel-backdrop';
-    backdrop.style.cssText = 'position:absolute;inset:0;z-index:90;display:none;background:rgba(0,0,0,0.7);align-items:center;justify-content:center;';
-    backdrop.onclick = function(e) { if (e.target === this) fermerTutoriel(); };
-    const modal = document.createElement('div');
-    modal.id = 'tutoriel-modal';
-    modal.style.cssText = 'width:90%;max-width:420px;background:linear-gradient(180deg,#1a1440,#0a061d);border:2px solid var(--gold);border-radius:16px;padding:20px;text-align:center;';
-    backdrop.appendChild(modal);
-    document.getElementById('main-container').appendChild(backdrop);
-  }
-}
-
-// ==================== TUTORIEL ====================
-const ETAPES_TUTORIEL = [
-  { titre: "👑 Bienvenue !", texte: "Bienvenue dans Lyon : l'Éveil. Vous incarnez un Réveilleur, chargé de bâtir une cité puissante et de conquérir le monde. Suivez ce guide pour comprendre les bases." },
-  { titre: "🌾 Ressources", texte: "Votre ville produit automatiquement des ressources : nourriture, bois, pierre et fer. Elles augmentent en fonction des bâtiments de production (fermes, scieries, carrières, mines) et du nombre de travailleurs (population active)." },
-  { titre: "👥 Population", texte: "La population est la clé. Chaque maison augmente la population maximale. Une partie travaille dans les bâtiments de production (population active), une autre peut être recrutée comme troupes (population militaire). Le reste est la population inactive, disponible pour de nouvelles affectations." },
-  { titre: "🏛️ Sénat & Impôts", texte: "Le Sénat affiche les détails de votre ville : population, production, moral. Vous pouvez y ajuster les impôts : plus d'impôts rapportent de l'or, mais font baisser le moral. Si le moral tombe trop bas, la production chute." },
-  { titre: "⚔️ Troupes", texte: "Entraînez des troupes dans la Caserne. Il existe 12 types d'unités, chacune ayant des coûts en ressources et en population. Il faut assez de population inactive pour les recruter." },
-  { titre: "🎖️ Héros", texte: "Recrutez des héros dans le tiroir Recruter. Chaque héros possède des statistiques et une compétence unique. Nommez un meneur pour diriger vos armées." },
-  { titre: "🛡️ Équipements & Sets", texte: "Achetez ou forgez des équipements pour vos héros. Chaque pièce donne des bonus. Équipez 3 pièces d'un même set pour débloquer un premier effet, et 5 pièces pour un effet ultime (immortalité, reset de combat, etc.)." },
-  { titre: "⚔️ Combat", texte: "Pour attaquer, touchez une cible sur la carte du monde (monstre, camp, joueur). Choisissez le héros qui mène l'attaque, puis lancez l'assaut. Les sets et compétences peuvent renverser l'issue du combat." },
-  { titre: "🤝 Alliances & Quêtes", texte: "Rejoignez ou créez une alliance pour coopérer. Accomplissez des quêtes pour gagner des récompenses. Explorez, conquérez des territoires et devenez le maître du Cœur du Monde !" }
-];
-
-let etapeTutoriel = 0;
-function ouvrirTutoriel() {
-  etapeTutoriel = 0;
-  afficherEtapeTutoriel();
-  document.getElementById('tutoriel-backdrop').style.display = 'flex';
-}
-function afficherEtapeTutoriel() {
-  const modal = document.getElementById('tutoriel-modal');
-  const etape = ETAPES_TUTORIEL[etapeTutoriel];
-  let html = `<h3>${etape.titre}</h3><p style="font-size:14px;color:#e5e7eb;margin:12px 0;">${etape.texte}</p>`;
-  html += `<div style="display:flex;justify-content:space-between;margin-top:20px;">`;
-  if (etapeTutoriel > 0) html += `<button class="btn-secondary" onclick="etapePrecedente()">← Précédent</button>`;
-  else html += `<span></span>`;
-  if (etapeTutoriel < ETAPES_TUTORIEL.length - 1) {
-    html += `<button class="btn-gold" onclick="etapeSuivante()">Suivant →</button>`;
-  } else {
-    html += `<button class="btn-gold" onclick="fermerTutoriel()">Terminer</button>`;
-  }
-  html += `</div>`;
-  modal.innerHTML = html;
-}
-window.etapeSuivante = function() {
-  if (etapeTutoriel < ETAPES_TUTORIEL.length - 1) {
-    etapeTutoriel++;
-    afficherEtapeTutoriel();
-  }
-};
-window.etapePrecedente = function() {
-  if (etapeTutoriel > 0) {
-    etapeTutoriel--;
-    afficherEtapeTutoriel();
-  }
-};
-window.fermerTutoriel = function() {
-  document.getElementById('tutoriel-backdrop').style.display = 'none';
-  if (!monProfil.tutorielVu) {
-    monProfil.tutorielVu = true;
-    sauvegarder({ tutorielVu: true });
-  }
-};
-
-// ==================== ENTRER DANS LE JEU ====================
-let _autresJoueurs = [];
-async function chargerAutresJoueurs() {
-  const snap = await getDocs(collection(db, COL));
-  _autresJoueurs = [];
-  snap.forEach(d => { if (d.id !== monId) _autresJoueurs.push({ id: d.id, ...d.data() }); });
-}
-function positionJoueur(id) {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) % 100000;
-  return { x: 200 + (h % 1800), y: 200 + Math.floor(h / 1800) % 2400 };
-}
-
-async function entrerDansLeJeu() {
-  try {
-    if (!monProfil.ressources) monProfil.ressources = { nourriture:800, bois:600, pierre:400, fer:200 };
-    if (!monProfil.batiments) monProfil.batiments = batimentsParDefaut();
-    if (!monProfil.troupes) monProfil.troupes = { fantassins:0, archers:0, cavaliers:0, cavaliersBlindes:0, balistes:0, trebuchets:0, piquiers:0, mages:0, golems:0, chevaliersNoirs:0, assassins:0, pretres:0 };
-    if (!monProfil.equipement) monProfil.equipement = { epee:0, bouclier:0, armure:0, arc:0, heaume:0 };
-    if (monProfil.dernierCalcul === undefined) monProfil.dernierCalcul = Date.now();
-    if (!monProfil.nomVille) monProfil.nomVille = "Lyon";
-    if (monProfil.allianceId === undefined) monProfil.allianceId = null;
-    if (!monProfil.strategies) monProfil.strategies = { mecontentement: 0, brusque: 0 };
-    if (!monProfil.heros) monProfil.heros = [];
-    if (monProfil.meneurIndex === undefined) monProfil.meneurIndex = null;
-    if (!monProfil.inventaireEquipement) monProfil.inventaireEquipement = [];
-    if (!monProfil.recherches) monProfil.recherches = {};
-    if (monProfil.prestige === undefined) monProfil.prestige = 0;
-    if (!monProfil.quetes) monProfil.quetes = { actives: {}, terminees: [] };
-    if (!monProfil.inventaireQuetes) monProfil.inventaireQuetes = [];
-    if (monProfil.moral === undefined) monProfil.moral = 80;
-    if (monProfil.tauxImpots === undefined) monProfil.tauxImpots = 10;
-    if (monProfil.herosFonctionnaireIndex === undefined) monProfil.herosFonctionnaireIndex = null;
-    if (monProfil.heroAttaqueIndex === undefined) monProfil.heroAttaqueIndex = null;
-    if (monProfil.tutorielVu === undefined) monProfil.tutorielVu = false;
-    if (!monProfil.monstresVaincus) monProfil.monstresVaincus = [];
-    if (!monProfil.constructionsEnCours) monProfil.constructionsEnCours = [];
-    if (!monProfil.entrainementsEnCours) monProfil.entrainementsEnCours = [];
-
-    document.getElementById('login-screen').style.display = 'none';
-    document.getElementById('game-ui').style.display = 'flex';
-    document.getElementById('hudCityName').innerText = monProfil.nomVille;
-    creerModalsDynamiques();
-    mettreAJourPopulation();
-    majHUD();
-    rendreVilleCanvas();
-    demarrerChat();
-    demarrerJournal();
-    document.getElementById('loading-overlay').classList.remove('show');
-    afficherToast(`👑 Bienvenue, ${monProfil.pseudo} !`);
-
-    (async () => {
-      try {
-        await calculerProductionAutomatique();
-        await chargerAutresJoueurs();
-        await chargerTerritoires();
-        await calculerProductionTerritoires();
-        demarrerCourrier();
-        demarrerParticules();
-        initialiserQuetesActives();
-        verifierProgressionQuetes();
-        lancerProductionEnDirect();
-        const bgMusic = document.getElementById('bgMusic');
-        if (bgMusic) bgMusic.play().catch(() => {});
-        setTimeout(recentrerCarte, 150);
-        if (!monProfil.tutorielVu) ouvrirTutoriel();
-      } catch (e) {
-        console.error('Erreur arrière-plan :', e);
-      }
-    })();
-  } catch (e) {
-    console.error(e);
-    alert('Erreur pendant le chargement : ' + e.message);
-    document.getElementById('loading-overlay').classList.remove('show');
-  }
-}
-
-function demarrerParticules() {
-  const zone = document.getElementById('particules-container');
-  if (!zone) return;
-  setInterval(() => {
-    const p = document.createElement('div');
-    p.className = 'particule';
-    p.style.left = Math.random() * 100 + '%';
-    p.style.bottom = '0px';
-    p.style.animationDuration = (4 + Math.random() * 4) + 's';
-    zone.appendChild(p);
-    setTimeout(() => p.remove(), 8000);
-  }, 700);
-}
-
-window.basculerMusique = function() {
-  const audio = document.getElementById('bgMusic');
-  const icone = document.getElementById('musicIcon');
-  if (audio.paused) { audio.play().catch(() => {}); icone.className = 'fas fa-volume-up'; }
-  else { audio.pause(); icone.className = 'fas fa-volume-mute'; }
-};
-
-// ==================== RESTAURATION DE SESSION ====================
-const savedId = localStorage.getItem('lyon_id');
-if (savedId) {
-  document.getElementById('codeInput').value = savedId;
-  seConnecter();
-}
+    modal.id = prefix + '-modal';
+    modal.style.cssText = prefix === 'tutoriel'
+      ? 'width:90%;max-width:420px;background:linear-gradient(180deg,#1a1440,#0a061d);border:2px solid var(--gold);border-radius:16px;padding:20px;text-align:center;'
+      : 'width:10
