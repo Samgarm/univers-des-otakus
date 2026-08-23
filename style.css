@@ -2,7 +2,6 @@
 * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; -webkit-tap-highlight-color: transparent; user-select: none; }
 body { background: var(--bg-dark); color: #f1f5f9; overflow: hidden; height: 100vh; width: 100vw; }
 
-/* ===================== CONNEXION ===================== */
 #login-screen { position: absolute; inset: 0; background: url('https://i.postimg.cc/QMc3tBWN/IMG-20260812-WA0041.jpg') no-repeat center center; background-size: cover; display: flex; align-items: center; justify-content: center; z-index: 1000; }
 .auth-overlay { background: rgba(0,0,0,0.45); padding: 24px 26px; border-radius: 16px; width: 85%; max-width: 280px; text-align: center; border: 1px solid rgba(251,191,36,0.3); backdrop-filter: blur(3px); }
 .auth-overlay h1, .auth-overlay h2 { color: var(--gold); margin-bottom: 10px; }
@@ -14,7 +13,6 @@ body { background: var(--bg-dark); color: #f1f5f9; overflow: hidden; height: 100
 .auth-links { display:flex; justify-content:space-around; margin-top:12px; font-size:12px; color:var(--gold); }
 .auth-links span { cursor:pointer; }
 
-/* ===================== GAME UI ===================== */
 #game-ui { display: none; flex-direction: column; height: 100vh; width: 100vw; }
 #top-hud { background: rgba(10,6,20,0.92); border-bottom: 2px solid var(--gold); z-index: 40; flex-shrink: 0; }
 .hud-player-row { display: flex; align-items: center; gap: 8px; padding: 6px 8px 4px; }
@@ -29,7 +27,6 @@ body { background: var(--bg-dark); color: #f1f5f9; overflow: hidden; height: 100
 .res-chip.food i { color: #eab308; } .res-chip.wood i { color: #a16207; } .res-chip.stone i { color: #9ca3af; } .res-chip.iron i { color: #cbd5e1; }
 .hud-ticker { background: rgba(251,191,36,0.1); border-top: 1px solid rgba(251,191,36,0.25); font-size: 10.5px; color: #fde68a; padding: 4px 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
 
-/* ===================== CARTE ===================== */
 #main-container { flex: 1; position: relative; overflow: hidden; background:#0d0a1a; }
 #map-viewport { position: absolute; inset: 0; overflow: hidden; touch-action: none; cursor: grab; }
 #map-viewport.grabbing { cursor: grabbing; }
@@ -60,7 +57,6 @@ body { background: var(--bg-dark); color: #f1f5f9; overflow: hidden; height: 100
 .territoire-icone.possede-autre { border-color: #f87171; }
 .territoire-label { margin-top: 2px; font-size: 8.5px; color: #fff; background: rgba(0,0,0,0.55); padding: 1px 5px; border-radius: 3px; }
 
-/* ===================== 🆕 ROYAUMES 3D ISOMÉTRIQUES DES AUTRES JOUEURS ===================== */
 .royaume-marker { position: absolute; transform: translate(-50%, -100%); display: flex; flex-direction: column; align-items: center; cursor: pointer; filter: drop-shadow(0 6px 5px rgba(0,0,0,0.55)); transform-origin: bottom center; }
 .royaume-3d { position: relative; width: 46px; height: 46px; }
 .royaume-mur { position: absolute; bottom: 0; left: 6px; width: 34px; height: 26px; background: linear-gradient(160deg,#a97c50,#5a3c1f); border: 2px solid #d4a24c; border-radius: 3px; }
@@ -87,7 +83,6 @@ body { background: var(--bg-dark); color: #f1f5f9; overflow: hidden; height: 100
 #aide-btn { position: absolute; top: 48px; right: 8px; z-index: 36; width: 34px; height: 34px; border-radius: 50%; background: rgba(10,6,20,0.85); border: 2px solid var(--gold); display: flex; align-items: center; justify-content: center; }
 #aide-btn i { color: var(--gold); font-size: 14px; }
 
-/* Tiroirs */
 .drawer { position: absolute; left: 0; right: 0; bottom: 0; z-index: 50; max-height: 70%; background: linear-gradient(180deg, rgba(26,20,64,0.9), rgba(10,6,29,0.98)); border-top: 2px solid var(--gold); border-radius: 20px 20px 0 0; padding: 16px 16px 24px; overflow-y: auto; transform: translateY(100%); transition: transform 0.28s ease-out; backdrop-filter: blur(6px); display: none; }
 .drawer.open { display: block; }
 .drawer.slide-in { transform: translateY(0); }
@@ -99,7 +94,6 @@ body { background: var(--bg-dark); color: #f1f5f9; overflow: hidden; height: 100
 .list-row .info { flex: 1; } .list-row .info h4 { font-size: 13px; } .list-row .info span { font-size: 11px; color: #9ca3af; }
 .list-row button { background: var(--gold); color: #0a061d; border: none; padding: 6px 12px; border-radius: 8px; font-weight: bold; font-size: 11px; }
 
-/* ===================== 🆕 CARTES GÉNÉRIQUES (boutique, quêtes, alliance, courrier) ===================== */
 .item-card { display: flex; justify-content: space-between; align-items: center; gap: 8px; background: rgba(0,0,0,0.3); border: 1px solid #3a2d63; border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; flex-wrap: wrap; }
 .item-card .info { flex: 1; min-width: 140px; } .item-card .info h4 { font-size: 13px; color: #fff; } .item-card .info span { font-size: 11px; color: #9ca3af; }
 .strategie-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; background: rgba(0,0,0,0.3); border: 1px solid #3a2d63; border-radius: 10px; padding: 8px 10px; margin-bottom: 6px; flex-wrap: wrap; }
@@ -107,7 +101,6 @@ body { background: var(--bg-dark); color: #f1f5f9; overflow: hidden; height: 100
 .mail-row { background: rgba(0,0,0,0.3); border-radius: 10px; padding: 8px 10px; margin-bottom: 6px; font-size: 12px; }
 .mail-row b { color: var(--gold); }
 
-/* Modales */
 #build-modal-backdrop { position: absolute; inset: 0; z-index: 60; display: none; background: rgba(0,0,0,0.55); align-items: flex-end; justify-content: center; }
 #build-modal { width: 100%; max-width: 480px; background: linear-gradient(180deg,#1a1440,#0a061d); border-top: 2px solid var(--gold); border-radius: 18px 18px 0 0; padding: 20px; text-align: center; animation: slideUp .25s ease-out; }
 @keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
