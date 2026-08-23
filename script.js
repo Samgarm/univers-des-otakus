@@ -31,8 +31,6 @@ function batimentsParDefaut() {
   };
 }
 
-// 🔧 CORRIGÉ : ajout de strategies complètes (mecontentement/brusque/contreOffensive/faillite),
-// c'était appauvri dans la version collée (seulement mecontentement+brusque).
 function profilParDefaut(pseudo, codeRecup) {
   return {
     pseudo, avatar: "👑", codeRecuperation: codeRecup, banni: false, premiereConnexion: true,
@@ -170,11 +168,9 @@ function calculerTauxProduction() {
     tauxN *= bonus; tauxB *= bonus; tauxP *= bonus; tauxF *= bonus;
   }
   if (bonusTechnologie(monProfil, 'agriculture1')) tauxN *= 1.2;
-  // 🆕 Le boost "Articles" double toute la production
   if (monProfil.boostProductionFin && monProfil.boostProductionFin > Date.now()) {
     tauxN *= 2; tauxB *= 2; tauxP *= 2; tauxF *= 2;
   }
-  // 🆕 La Graine de Mécontentement réduit la production de moitié
   if (monProfil.malusProductionFin && monProfil.malusProductionFin > Date.now()) {
     tauxN *= 0.5; tauxB *= 0.5; tauxP *= 0.5; tauxF *= 0.5;
   }
@@ -235,7 +231,6 @@ async function calculerProductionAutomatique() {
 }
 
 // ==================== HUD ====================
-// 🔧 CORRIGÉ : population et moral n'étaient jamais réellement affichés (IDs absents du HTML) — maintenant présents.
 function majHUD() {
   document.getElementById('avatarBox').innerText = monProfil.avatar || "👑";
   document.getElementById('pnameAffiche').innerText = monProfil.pseudo;
@@ -328,7 +323,6 @@ const HEROS_LEGENDAIRES = [
   { nom: "Phénix Immortel", icon: "🔥", etoiles: 5, attaque: 175, defense: 150, competence: { type: "vitesse", valeur: 0.5, desc: "Déplacements 50% plus rapides + 20% butin" }, equipements: [] }
 ];
 
-// 🔧 CORRIGÉ : ces deux fonctions étaient appelées (toggleTiroir 'recruter') mais n'existaient nulle part → le tiroir plantait.
 function afficherMesHeros() {
   const box = document.getElementById('mesHerosListe');
   if (!box) return;
@@ -425,7 +419,6 @@ function calculerStatsHeroAvecEquipements(hero) {
   }
   return { attaque: att, defense: def, vitesse: vit };
 }
-// 🔧 CORRIGÉ : gardait contre hero undefined (plantait sur un défenseur sans héros).
 function calculerSetActifs(hero) {
   if (!hero || !hero.equipements) return {};
   const sets = {};
@@ -595,7 +588,6 @@ function bonusMeneur(profil) {
   }
   return { attaque: 0, defense: 0 };
 }
-// Bonus de butin du héros meneur/attaquant (compétence "butin")
 function bonusButin(profil) {
   const idx = profil.heroAttaqueIndex !== undefined && profil.heroAttaqueIndex !== null ? profil.heroAttaqueIndex : profil.meneurIndex;
   const h = (profil.heros || [])[idx];
@@ -621,7 +613,6 @@ function appliquerSetsAttaquant(attaque) {
   }
   return attaque;
 }
-// 🔧 CORRIGÉ : accès à defenseur.heros[idx] sans garde plantait si le défenseur n'avait aucun héros.
 function appliquerSetsDefenseur(profil, defense) {
   const idx = profil.meneurIndex || 0;
   const hero = (profil.heros || [])[idx];
@@ -633,7 +624,7 @@ function appliquerSetsDefenseur(profil, defense) {
   return defense;
 }
 
-// ==================== 🆕 STRATÉGIES (restaurées : Faillite Temporelle, Contre-Offensive, etc.) ====================
+// ==================== STRATÉGIES ====================
 const NOMS_STRATEGIES = {
   mecontentement: { nom: "🌱 Graine de Mécontentement", desc: "S'utilise depuis le profil d'une ville adverse : réduit sa production de moitié 6h." },
   brusque: { nom: "⚡ Attaque Brusque", desc: "S'active automatiquement à ta prochaine attaque (+20% force)." },
@@ -781,7 +772,6 @@ window.lancerAttaque = async function() {
   if (total === 0) { afficherToast("⛔ Entraîne des troupes d'abord."); return; }
   let monAttaque = forceAttaque(monProfil);
   monAttaque = appliquerSetsAttaquant(monAttaque);
-  // 🆕 Attaque Brusque : consommée automatiquement si en stock
   let noteStrategie = "";
   if ((monProfil.strategies?.brusque || 0) > 0) {
     monProfil.strategies.brusque -= 1;
@@ -801,7 +791,6 @@ window.lancerAttaque = async function() {
     if (defenseur.village?.bouclierFin > Date.now()) { afficherToast("🛡️ Ville protégée par un bouclier."); return; }
     let sonDefense = forceDefense(defenseur);
     sonDefense = appliquerSetsDefenseur(defenseur, sonDefense);
-    // 🆕 Contre-Offensive du défenseur : -20% à l'attaquant si active
     if (defenseur.contreOffensifFin > Date.now()) { monAttaque = Math.round(monAttaque * 0.8); noteStrategie += " 🛡️ Contre-Offensive du défenseur (-20% à ton attaque) !"; }
     victoire = monAttaque * (0.85 + Math.random() * 0.3) >= sonDefense;
 
@@ -847,7 +836,6 @@ window.lancerAttaque = async function() {
       afficherButin(butinOr, butinBois, butinPierre, butinFer, heroCaptureMsg ? [heroCaptureMsg] : []);
       ajouterAuJournal(`⚔️ ${monProfil.pseudo} a vaincu ${cibleAttaque.nom} et récupéré des matériaux !${noteStrategie}`);
     } else {
-      // 🆕 Faillite Temporelle du défenseur : annule totalement les pertes, comme si l'attaque n'avait jamais eu lieu
       if ((defenseur.strategies?.faillite || 0) > 0) {
         defenseur.strategies.faillite -= 1;
         await updateDoc(doc(db, COL, cibleAttaque.id), { strategies: defenseur.strategies });
@@ -966,8 +954,6 @@ window.ouvrirProfilVille = async function(id) {
 };
 window.fermerProfilVille = function() { document.getElementById('profil-ville-backdrop').style.display = 'none'; };
 
-// 🔧 CORRIGÉ : une const locale nommée "forceDefense" masquait la fonction globale forceDefense() dans le même scope
-// → provoquait un ReferenceError (Cannot access before initialization) à chaque tentative d'espionnage. Renommée.
 window.espionnerJoueur = async function(id) {
   const cibleSnap = await getDoc(doc(db, COL, id));
   if (!cibleSnap.exists()) { afficherToast("Ce joueur n'existe plus."); return; }
@@ -1092,7 +1078,7 @@ function calculerPuissanceDe(profil) {
 }
 function calculerPuissance() { return calculerPuissanceDe(monProfil); }
 
-// ==================== 🆕 CLASSEMENT DU ROYAUME ====================
+// ==================== CLASSEMENT DU ROYAUME ====================
 async function afficherClassement() {
   const box = document.getElementById('classementListe');
   if (!box) return;
@@ -1123,6 +1109,8 @@ function afficherGainFlottant(texte) {
 // ==================== CARTE ====================
 let vueActuelle = 'city';
 let canvas, viewport;
+canvas = document.getElementById('map-canvas');
+viewport = document.getElementById('map-viewport');
 
 function rendreVilleCanvas() {
   canvas.className = 'terrain-city';
@@ -1148,6 +1136,7 @@ function rendreVilleCanvas() {
 const ICONES_TERRITOIRE = { 'Forêt': { emoji: '🌲', classe: 'foret' }, 'Montagne': { emoji: '⛰️', classe: 'montagne' }, 'Mine': { emoji: '💎', classe: 'montagne' }, 'Champ': { emoji: '🌾', classe: 'marecage' }, 'Marécage': { emoji: '🐊', classe: 'marecage' } };
 
 let _autresJoueurs = [];
+
 function rendreMondeCanvas() {
   canvas.className = 'terrain-world';
   canvas.innerHTML = '';
@@ -1192,7 +1181,6 @@ function rendreMondeCanvas() {
     canvas.appendChild(el);
   });
 
-  // 🔧 CORRIGÉ : les royaumes 3D des autres joueurs n'avaient aucun style (classes CSS absentes) → maintenant définies dans style.css
   _autresJoueurs.forEach(j => {
     const pos = positionJoueur(j.id);
     const puissance = calculerPuissanceDe(j);
@@ -1218,6 +1206,9 @@ function clampPan() {
   panY = Math.max(minY, Math.min(0, panY));
 }
 function appliquerPan() { canvas.style.transform = `translate(${panX}px, ${panY}px)`; }
+viewport.addEventListener('pointerdown', e => { dragging = true; viewport.classList.add('grabbing'); startX = e.clientX; startY = e.clientY; startPanX = panX; startPanY = panY; viewport.setPointerCapture(e.pointerId); });
+viewport.addEventListener('pointermove', e => { if (!dragging) return; panX = startPanX + (e.clientX - startX); panY = startPanY + (e.clientY - startY); clampPan(); appliquerPan(); });
+['pointerup', 'pointercancel', 'pointerleave'].forEach(evt => viewport.addEventListener(evt, () => { dragging = false; viewport.classList.remove('grabbing'); }));
 
 function allerVue(vue) {
   vueActuelle = vue;
@@ -1327,7 +1318,6 @@ function creerRassemblement() {
   box.innerHTML = html;
 }
 
-// ==================== CONSTRUCTION ====================
 function verifierConstructions() {
   if (!monProfil.constructionsEnCours || monProfil.constructionsEnCours.length === 0) return;
   const maintenant = Date.now();
@@ -1530,7 +1520,7 @@ function afficherQuetes() {
   box.innerHTML = html;
 }
 
-// ==================== 🆕 INVENTAIRE (manquait entièrement) ====================
+// ==================== INVENTAIRE ====================
 function afficherInventaire() {
   const box = document.getElementById('inventaireListe');
   if (!box) return;
@@ -1597,4 +1587,150 @@ function creerModalsDynamiques() {
     modal.id = prefix + '-modal';
     modal.style.cssText = prefix === 'tutoriel'
       ? 'width:90%;max-width:420px;background:linear-gradient(180deg,#1a1440,#0a061d);border:2px solid var(--gold);border-radius:16px;padding:20px;text-align:center;'
-      : 'width:10
+      : 'width:100%;max-width:480px;background:linear-gradient(180deg,#1a1440,#0a061d);border-top:2px solid var(--gold);border-radius:18px 18px 0 0;padding:20px;text-align:center;max-height:80vh;overflow-y:auto;';
+    backdrop.appendChild(modal);
+    document.getElementById('main-container').appendChild(backdrop);
+  });
+}
+
+// ==================== TUTORIEL ====================
+const ETAPES_TUTORIEL = [
+  { titre: "👑 Bienvenue !", texte: "Bienvenue dans Lyon : l'Éveil. Vous incarnez un Réveilleur, chargé de bâtir une cité puissante et de conquérir le monde. Suivez ce guide pour comprendre les bases." },
+  { titre: "🌾 Ressources", texte: "Votre ville produit automatiquement des ressources : nourriture, bois, pierre et fer. Elles augmentent en fonction des bâtiments de production (fermes, scieries, carrières, mines) et du nombre de travailleurs (population active)." },
+  { titre: "👥 Population", texte: "La population est la clé. Chaque maison augmente la population maximale. Une partie travaille dans les bâtiments de production (population active), une autre peut être recrutée comme troupes (population militaire). Le reste est la population inactive, disponible pour de nouvelles affectations." },
+  { titre: "🏛️ Sénat & Impôts", texte: "Le Sénat affiche les détails de votre ville : population, production, moral. Vous pouvez y ajuster les impôts : plus d'impôts rapportent de l'or, mais font baisser le moral. Si le moral tombe trop bas, la production chute." },
+  { titre: "⚔️ Troupes", texte: "Entraînez des troupes dans la Caserne. Il existe 12 types d'unités, chacune ayant des coûts en ressources et en population. Il faut assez de population inactive pour les recruter." },
+  { titre: "🎖️ Héros", texte: "Recrutez des héros dans le tiroir Recruter. Chaque héros possède des statistiques et une compétence unique. Nommez un meneur pour diriger vos armées." },
+  { titre: "🛡️ Équipements & Sets", texte: "Achetez ou forgez des équipements pour vos héros. Chaque pièce donne des bonus. Équipez 3 pièces d'un même set pour débloquer un premier effet, et 5 pièces pour un effet ultime (immortalité, reset de combat, etc.)." },
+  { titre: "⚔️ Combat", texte: "Pour attaquer, touchez une cible sur la carte du monde (monstre, camp, joueur). Choisissez le héros qui mène l'attaque, puis lancez l'assaut. Les sets et compétences peuvent renverser l'issue du combat." },
+  { titre: "🤝 Alliances & Quêtes", texte: "Rejoignez ou créez une alliance pour coopérer. Accomplissez des quêtes pour gagner des récompenses. Explorez, conquérez des territoires et devenez le maître du Cœur du Monde !" }
+];
+let etapeTutoriel = 0;
+function ouvrirTutoriel() {
+  etapeTutoriel = 0;
+  afficherEtapeTutoriel();
+  document.getElementById('tutoriel-backdrop').style.display = 'flex';
+}
+function afficherEtapeTutoriel() {
+  const modal = document.getElementById('tutoriel-modal');
+  const etape = ETAPES_TUTORIEL[etapeTutoriel];
+  let html = `<h3 style="color:var(--gold);margin-bottom:10px;">${etape.titre}</h3><p style="font-size:14px;color:#e5e7eb;margin:12px 0;">${etape.texte}</p>`;
+  html += `<div style="display:flex;justify-content:space-between;margin-top:20px;">`;
+  if (etapeTutoriel > 0) html += `<button class="btn-secondary" onclick="etapePrecedente()">← Précédent</button>`;
+  else html += `<span></span>`;
+  if (etapeTutoriel < ETAPES_TUTORIEL.length - 1) html += `<button class="btn-gold" onclick="etapeSuivante()">Suivant →</button>`;
+  else html += `<button class="btn-gold" onclick="fermerTutoriel()">Terminer</button>`;
+  html += `</div>`;
+  modal.innerHTML = html;
+}
+window.etapeSuivante = function() { if (etapeTutoriel < ETAPES_TUTORIEL.length - 1) { etapeTutoriel++; afficherEtapeTutoriel(); } };
+window.etapePrecedente = function() { if (etapeTutoriel > 0) { etapeTutoriel--; afficherEtapeTutoriel(); } };
+window.fermerTutoriel = function() {
+  document.getElementById('tutoriel-backdrop').style.display = 'none';
+  if (!monProfil.tutorielVu) { monProfil.tutorielVu = true; sauvegarder({ tutorielVu: true }); }
+};
+
+// ==================== ENTRER DANS LE JEU ====================
+let _autresJoueurs = [];
+async function chargerAutresJoueurs() {
+  const snap = await getDocs(collection(db, COL));
+  _autresJoueurs = [];
+  snap.forEach(d => { if (d.id !== monId) _autresJoueurs.push({ id: d.id, ...d.data() }); });
+}
+function positionJoueur(id) {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) % 100000;
+  return { x: 200 + (h % 1800), y: 200 + Math.floor(h / 1800) % 2400 };
+}
+
+async function entrerDansLeJeu() {
+  try {
+    if (!monProfil.ressources) monProfil.ressources = { nourriture:800, bois:600, pierre:400, fer:200 };
+    if (!monProfil.batiments) monProfil.batiments = batimentsParDefaut();
+    if (!monProfil.troupes) monProfil.troupes = { fantassins:0, archers:0, cavaliers:0, cavaliersBlindes:0, balistes:0, trebuchets:0, piquiers:0, mages:0, golems:0, chevaliersNoirs:0, assassins:0, pretres:0 };
+    if (!monProfil.equipement) monProfil.equipement = { epee:0, bouclier:0, armure:0, arc:0, heaume:0 };
+    if (monProfil.dernierCalcul === undefined) monProfil.dernierCalcul = Date.now();
+    if (!monProfil.nomVille) monProfil.nomVille = "Lyon";
+    if (monProfil.allianceId === undefined) monProfil.allianceId = null;
+    if (!monProfil.strategies) monProfil.strategies = { mecontentement: 0, brusque: 0, contreOffensive: 0, faillite: 0 };
+    if (!monProfil.heros) monProfil.heros = [];
+    if (monProfil.meneurIndex === undefined) monProfil.meneurIndex = null;
+    if (!monProfil.inventaireEquipement) monProfil.inventaireEquipement = [];
+    if (!monProfil.recherches) monProfil.recherches = {};
+    if (monProfil.prestige === undefined) monProfil.prestige = 0;
+    if (!monProfil.quetes) monProfil.quetes = { actives: {}, terminees: [] };
+    if (!monProfil.inventaireQuetes) monProfil.inventaireQuetes = [];
+    if (monProfil.moral === undefined) monProfil.moral = 80;
+    if (monProfil.tauxImpots === undefined) monProfil.tauxImpots = 10;
+    if (monProfil.herosFonctionnaireIndex === undefined) monProfil.herosFonctionnaireIndex = null;
+    if (monProfil.heroAttaqueIndex === undefined) monProfil.heroAttaqueIndex = null;
+    if (monProfil.tutorielVu === undefined) monProfil.tutorielVu = false;
+    if (!monProfil.monstresVaincus) monProfil.monstresVaincus = [];
+    if (!monProfil.constructionsEnCours) monProfil.constructionsEnCours = [];
+    if (!monProfil.entrainementsEnCours) monProfil.entrainementsEnCours = [];
+
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('game-ui').style.display = 'flex';
+    document.getElementById('hudCityName').innerText = monProfil.nomVille;
+    creerModalsDynamiques();
+    mettreAJourPopulation();
+    majHUD();
+    rendreVilleCanvas();
+    demarrerChat();
+    demarrerJournal();
+    document.getElementById('loading-overlay').classList.remove('show');
+    afficherToast(`👑 Bienvenue, ${monProfil.pseudo} !`);
+
+    (async () => {
+      try {
+        await calculerProductionAutomatique();
+        await chargerAutresJoueurs();
+        await chargerTerritoires();
+        await calculerProductionTerritoires();
+        demarrerCourrier();
+        demarrerParticules();
+        initialiserQuetesActives();
+        verifierProgressionQuetes();
+        lancerProductionEnDirect();
+        const bgMusic = document.getElementById('bgMusic');
+        if (bgMusic) bgMusic.play().catch(() => {});
+        setTimeout(recentrerCarte, 150);
+        if (!monProfil.tutorielVu) ouvrirTutoriel();
+      } catch (e) {
+        console.error('Erreur arrière-plan :', e);
+      }
+    })();
+  } catch (e) {
+    console.error(e);
+    alert('Erreur pendant le chargement : ' + e.message);
+    document.getElementById('loading-overlay').classList.remove('show');
+  }
+}
+
+function demarrerParticules() {
+  const zone = document.getElementById('particules-container');
+  if (!zone) return;
+  setInterval(() => {
+    const p = document.createElement('div');
+    p.className = 'particule';
+    p.style.left = Math.random() * 100 + '%';
+    p.style.bottom = '0px';
+    p.style.animationDuration = (4 + Math.random() * 4) + 's';
+    zone.appendChild(p);
+    setTimeout(() => p.remove(), 8000);
+  }, 700);
+}
+
+window.basculerMusique = function() {
+  const audio = document.getElementById('bgMusic');
+  const icone = document.getElementById('musicIcon');
+  if (audio.paused) { audio.play().catch(() => {}); icone.className = 'fas fa-volume-up'; }
+  else { audio.pause(); icone.className = 'fas fa-volume-mute'; }
+};
+
+// ==================== RESTAURATION DE SESSION ====================
+const savedId = localStorage.getItem('lyon_id');
+if (savedId) {
+  document.getElementById('codeInput').value = savedId;
+  seConnecter();
+    }
