@@ -88,6 +88,7 @@ body { background: var(--bg-dark); color: #f1f5f9; overflow: hidden; height: 100
 .drawer.slide-in { transform: translateY(0); }
 .drawer-handle { width: 40px; height: 4px; background: rgba(255,255,255,0.25); border-radius: 2px; margin: 0 auto 12px; }
 .drawer h2 { color: var(--gold); font-size: 17px; margin-bottom: 10px; }
+.drawer h4 { margin-bottom: 6px; }
 .hint { color: #9ca3af; font-size: 12px; }
 .list-row { display: flex; align-items: center; gap: 12px; background: rgba(0,0,0,0.3); border: 1px solid #3a2d63; border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; cursor: pointer; }
 .list-row i { font-size: 20px; color: var(--gold); width: 26px; text-align: center; }
@@ -138,10 +139,8 @@ body { background: var(--bg-dark); color: #f1f5f9; overflow: hidden; height: 100
 
 #music-toggle { position: absolute; top: 8px; right: 92px; z-index: 36; width: 34px; height: 34px; border-radius: 50%; background: rgba(10,6,20,0.85); border: 2px solid var(--gold); display: flex; align-items: center; justify-content: center; }
 #music-toggle i { color: var(--gold); font-size: 14px; }
-
 .barre-vie-fight { height: 12px; background: #333; border-radius: 6px; margin-top: 5px; overflow: hidden; }
 .vie-fill { height: 100%; border-radius: 6px; transition: width 0.4s ease; }
-@keyframes marcheTroupes { 0% { transform: translateX(-60px); opacity:0.3; } 50% { opacity:1; } 100% { transform: translateX(60px); opacity:0.3; } }
 
 #bottom-nav { background: rgba(0,0,0,0.95); padding: 6px 0 8px; display: flex; justify-content: space-around; border-top: 2px solid var(--purple); z-index: 40; flex-shrink: 0; }
 .nav-btn { background: none; border: none; color: #9ca3af; display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; position: relative; }
@@ -158,11 +157,9 @@ body { background: var(--bg-dark); color: #f1f5f9; overflow: hidden; height: 100
 .qa-btn:last-child { border-right: none; }
 .qa-btn i { font-size: 16px; }
 .qa-btn span { font-size: 9px; }
-
 #chat-strip { display: flex; align-items: center; gap: 8px; background: rgba(8,5,15,0.95); padding: 5px 10px; border-top: 1px solid #2a1f4a; z-index: 40; cursor: pointer; }
 #chat-strip i.chat-globe { color: #38bdf8; font-size: 15px; }
 #chat-strip .chat-lines { flex: 1; min-width: 0; }
 #chat-strip .chat-lines div { font-size: 10px; color: #cbd5e1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #chat-strip i.chat-bubble { color: #d4a24c; font-size: 17px; }
-
 #toast { position: fixed; bottom: 130px; left: 20px; right: 20px; background: #1e193d; color: white; padding: 10px 15px; border-radius: 8px; border-left: 4px solid var(--gold); display: none; font-size: 13px; text-align: center; z-index: 999; }
